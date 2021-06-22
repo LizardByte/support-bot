@@ -1,8 +1,9 @@
 import discord
 from discord_slash import SlashCommand
 import keep_alive
+import os
 
-
+bot_token = os.environ['bot_token']
 client = discord.Client(intents=discord.Intents.all())
 slash = SlashCommand(client, sync_commands=True)
 
@@ -53,4 +54,4 @@ async def _ping(ctx):
 keep_alive.keep_alive()
 
 # Login the bot
-client.run("ODU2ODkyMDgyNjgxMTUxNDg4.YNHo8A.kAmviX1PB6XGmS7XStUnsKHOrn0")
+client.run(bot_token)
