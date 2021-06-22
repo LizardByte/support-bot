@@ -1,5 +1,6 @@
 import discord
 from discord_slash import SlashCommand
+import keep_alive
 
 
 client = discord.Client(intents=discord.Intents.all())
@@ -48,4 +49,8 @@ async def _ping(ctx):
         await ctx.send(embed=embedVar)
 
 
+# Start the server
+keep_alive.keep_alive()
+
+# Login the bot
 client.run("ODU2ODkyMDgyNjgxMTUxNDg4.YNHo8A.kAmviX1PB6XGmS7XStUnsKHOrn0")
