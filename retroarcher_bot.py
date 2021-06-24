@@ -106,20 +106,18 @@ for key, value in command_dict.items():
     description = value.replace('-', ' ').replace('_', ' ').strip()
     @slash.slash(name=key, description=description, guild_ids=guild_ids)
     async def _ping(ctx):
-        for k, v in command_dict.items():
-            if ctx.command == k:
-                gitUser = 'RetroArcher'
-                gitRepo = 'RetroArcher.bundle'
-                wikiFile = urllib.parse.quote(v)
-                title = v.replace('-', ' ').replace('_', ' ').strip()
-                color=0xE5A00D
+        v = command_dict[ctx.command]
+        gitUser = 'RetroArcher'
+        gitRepo = 'RetroArcher.bundle'
+        wikiFile = urllib.parse.quote(v)
+        title = v.replace('-', ' ').replace('_', ' ').strip()
+        color=0xE5A00D
 
-                url, embed_message, color = discordMessage(gitUser, gitRepo, wikiFile, color)
-                embed = discord.Embed(title=title, url=url, description=embed_message, color=color)
-                embed.set_author(name=botName, url=botUrl, icon_url=iconUrl)
+        url, embed_message, color = discordMessage(gitUser, gitRepo, wikiFile, color)
+        embed = discord.Embed(title=title, url=url, description=embed_message, color=color)
+        embed.set_author(name=botName, url=botUrl, icon_url=iconUrl)
 
-                await ctx.send(embed=embed)
-                break
+        await ctx.send(embed=embed)
 
 
 @slash.slash(name="donate", description="donate", guild_ids=guild_ids)
