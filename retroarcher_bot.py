@@ -126,16 +126,6 @@ for key, value in command_dict.items():
 '''
 
 
-# Donate command... let's improve this
-@slash.slash(name="donate_old", description="donate", guild_ids=guild_ids)
-async def _ping(ctx):
-    embed = discord.Embed(title="Donate", color=0xE5A00D)
-    embed.add_field(name="Github", value="[Link](https://github.com/sponsors/ReenigneArcher)", inline=False)
-    embed.add_field(name="Patreon", value="[Link](https://www.patreon.com/RetroArcher)", inline=False)
-    embed.add_field(name="PayPal", value="[Link](https://paypal.me/ReenigneArcher)", inline=False)
-    await ctx.send(embed=embed)
-
-
 # Donate command
 @slash.slash(name="donate",
              description="Support the development of RetroArcher",
