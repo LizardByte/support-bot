@@ -1,2 +1,2 @@
 language = "python3"
-run = "python retroarcher_bot.py"
+run = "python discord_bot.py"

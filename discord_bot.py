@@ -6,7 +6,6 @@ import os
 import requests
 import urllib
 
-
 # local imports
 import keep_alive
 
@@ -18,7 +17,7 @@ slash = SlashCommand(client, sync_commands=True)
 
 guild_ids = [int(os.environ['server_id'])]
 
-botName = 'RetroArcher bot'
+botName = os.environ['REPL_SLUG']
 botUrl = 'https://github.com/RetroArcher'
 iconUrl = 'https://raw.githubusercontent.com/RetroArcher/RetroArcher.branding/main/logos/RetroArcher-white-256x256.png'
 
@@ -59,6 +58,7 @@ command_dict = {
 def convert_wiki(gitUser, gitRepo, wikiFile):
     url = 'https://raw.githubusercontent.com/wiki/%s/%s/%s.md' % (gitUser, gitRepo, wikiFile)
     f = requests.get(url)
+
     return f.text
 
 
@@ -74,56 +74,8 @@ def discordMessage(gitUser, gitRepo, wikiFile, color):
 # on ready
 @client.event
 async def on_ready():
-    print("Conected to RetroArcher bot!")
+    print("Conected to %s!" % (os.environ['REPL_SLUG']))
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="the RetroArcher server"))
-
-'''
-# on message, no slash command created
-@client.event
-async def on_message(message):
-    print(message)
-    print(message.content)
-    if message.author == client.user:
-        return #don't do anything if author is this bot
-    
-    print(message.content)
-
-    for key, value in command_dict.items():
-        if message.content == '!%s' % (key):
-            gitUser = 'RetroArcher'
-            gitRepo = 'RetroArcher.bundle'
-            wikiFile = urllib.parse.quote(value)
-            title = value.replace('-', ' ').replace('_', ' ').strip()
-            color=0xE5A00D
-
-            url, embed_message, color = discordMessage(gitUser, gitRepo, wikiFile, color)
-            embed = discord.Embed(title=title, url=url, description=embed_message, color=color)
-            embed.set_author(name=botName, url=botUrl, icon_url=iconUrl)
-
-            await message.channel.send(embed=embed)
-            break
-'''
-
-'''
-# slash command for each wiki page in dictionary
-# Commands
-for key, value in command_dict.items():
-    description = value.replace('-', ' ').replace('_', ' ').strip()
-    @slash.slash(name=key, description=description, guild_ids=guild_ids)
-    async def _ping(ctx):
-        v = command_dict[ctx.command]
-        gitUser = 'RetroArcher'
-        gitRepo = 'RetroArcher.bundle'
-        wikiFile = urllib.parse.quote(v)
-        title = v.replace('-', ' ').replace('_', ' ').strip()
-        color=0xE5A00D
-
-        url, embed_message, color = discordMessage(gitUser, gitRepo, wikiFile, color)
-        embed = discord.Embed(title=title, url=url, description=embed_message, color=color)
-        embed.set_author(name=botName, url=botUrl, icon_url=iconUrl)
-
-        await ctx.send(embed=embed)
-'''
 
 
 # Donate command
@@ -201,7 +153,6 @@ async def wiki(ctx, page: str, user: discord.Member = None):
         await ctx.send(user.mention, embed=embed)
     else:
         await ctx.send(embed=embed)
-        
 
 
 # Start the server

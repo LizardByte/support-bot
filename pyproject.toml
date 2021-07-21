@@ -10,6 +10,7 @@ python = "^3.8"
 Flask = "^2.0.1"
 discord-py-slash-command = "^2.0.0"
 requests = "^2.25.1"
+Markdown = "^3.3.4"
 
 [tool.poetry.dev-dependencies]
 

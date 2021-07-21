@@ -1,11 +1,12 @@
 from flask import Flask
 from threading import Thread
+import os
 
 app = Flask('')
 
 @app.route('/')
 def main():
-    return "RetroArcher bot is live!"
+    return "%s is live!" % (os.environ['REPL_SLUG'])
 
 def run():
     app.run(host="0.0.0.0", port=8080)
