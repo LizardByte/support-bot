@@ -19,7 +19,6 @@ This is a custom discord bot wish some slash commands to help with support on th
   * Server Members Intent
 * Enter the following into the repl secrets
   * bot_token = `client_secret` from discord app setup page
-  * server_id = right click server in discord, `copy id`
 * Running bot:
   * `python discord_bot.py`
 
