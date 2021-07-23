@@ -2,8 +2,10 @@ import discord
 from discord.ext import commands
 from discord_slash import SlashCommand
 from discord_slash.utils.manage_commands import create_option, create_choice
+import json
 import os
 import requests
+import sys
 import urllib
 
 # local imports
@@ -15,8 +17,6 @@ bot_token = os.environ['bot_token']
 client = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 slash = SlashCommand(client, sync_commands=True)
 
-guild_ids = [int(os.environ['server_id'])]
-
 botName = os.environ['REPL_SLUG']
 botUrl = 'https://github.com/RetroArcher'
 iconUrl = 'https://raw.githubusercontent.com/RetroArcher/RetroArcher.branding/main/logos/RetroArcher-white-256x256.png'
@@ -26,32 +26,23 @@ iconUrl = 'https://raw.githubusercontent.com/RetroArcher/RetroArcher.branding/ma
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
 
 
+# get list of guild ids from file
+guild_file = 'guilds.json'
+try:
+    with open(guild_file, 'r') as f:
+        guild_ids = json.load(f)
+except FileNotFoundError:
+    guild_ids = []
+
+
 # command : wiki-file
-command_dict = {
-    'home' : 'Home',
-    'wiki' : '_Sidebar',
-    'logs' : 'Log-Files',
-    'server' : 'Prerequisites,-Server',
-    'client' : 'Prerequisites,-Client',
-    'clients' : 'Supported-clients',
-    'install' : 'Installation',
-    'python' : 'Install-Python',
-    'tautulli' : 'Configure-Tautulli',
-    'gamestreaming' : 'Configure-Game-Streaming',
-    'settings' : 'Configure-RetroArcher',
-    'platforms' : 'Platform-Names',
-    'scan' : 'Scanning-Games-and-Roms',
-    'library' : 'Configure-Game-Library',
-    'config_client' : 'Configure-Clients',
-    'meta-igdb' : 'Metadata-(IGDB)',
-    'meta-local' : 'Metadata-(Local)',
-    'config_retroarch' : 'Configure-RetroArch',
-    'cores_retroarch' : 'Default-Cores',
-    'gamepads_retroarch' : 'Game-pads',
-    'config_cemu' : 'Configure-CEMU',
-    'config_rpcs3' : 'Configure-RPCS3',
-    'todo' : 'To-Do',
-}
+command_file = 'commands.json'
+try:
+    with open(command_file, 'r') as f:
+        command_dict = json.load(f)
+except FileNotFoundError:
+    print('Error: %s not found' % (command_file))
+    sys.exit(1)
 
 
 # functions
@@ -74,6 +65,23 @@ def discordMessage(gitUser, gitRepo, wikiFile, color):
 # on ready
 @client.event
 async def on_ready():
+    print('Logged in as')
+    print(client.user.name)
+    print(client.user.id)
+    print(discord.__version__)
+    print('------')
+
+    print('Servers connected to:')
+    print(client.guilds)
+    guild_ids = []
+    for guild in client.guilds:
+        print(guild.name)
+        #print(guild.id)
+        guild_ids.append(guild.id)
+        #print(guild_ids)
+    with open(guild_file, 'w') as f:
+        json.dump(guild_ids, f, indent=2)
+
     print("Conected to %s!" % (os.environ['REPL_SLUG']))
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="the RetroArcher server"))
 
