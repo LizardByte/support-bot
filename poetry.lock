@@ -182,6 +182,17 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "repltalk"
+version = "1.0.0"
+description = "Allows you to do various things with the kind of unofficial Repl.it Repl Talk API"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+aiohttp = "*"
+
+[[package]]
 name = "requests"
 version = "2.25.1"
 description = "Python HTTP for Humans."
@@ -246,7 +257,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "316cf9d310ce6bbc69a3eeeac6af7f4dd11ea7d2f3e9dc619906380490722fed"
+content-hash = "c06646e8949960f462dacfd45ffa0df17176dcf81614866ca30eb7d790c3b6dd"
 
 [metadata.files]
 aiohttp = [
@@ -413,6 +424,10 @@ multidict = [
     {file = "multidict-5.1.0-cp39-cp39-win32.whl", hash = "sha256:fc13a9524bc18b6fb6e0dbec3533ba0496bbed167c56d0aabefd965584557d80"},
     {file = "multidict-5.1.0-cp39-cp39-win_amd64.whl", hash = "sha256:7df80d07818b385f3129180369079bd6934cf70469f99daaebfac89dca288359"},
     {file = "multidict-5.1.0.tar.gz", hash = "sha256:25b4e5f22d3a37ddf3effc0710ba692cfc792c2b9edfb9c05aefe823256e84d5"},
+]
+repltalk = [
+    {file = "repltalk-1.0.0-py3-none-any.whl", hash = "sha256:10d6db46fb4351c5126cf14e814406f07793b8247d1ac2081723bc60c3a8d751"},
+    {file = "repltalk-1.0.0.tar.gz", hash = "sha256:d4e87aa57bc75a729c8b08c1b86d0bad855e4004053cba69123bf347dbc00975"},
 ]
 requests = [
     {file = "requests-2.25.1-py2.py3-none-any.whl", hash = "sha256:c210084e36a42ae6b9219e00e48287def368a26d03a048ddad7bfee44f75871e"},
