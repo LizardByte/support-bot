@@ -19,6 +19,12 @@ async def get_repl_avatar(user_name):
     return user.avatar
 
 
+def loop_repl_avatar():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(get_repl_avatar(os.environ['REPL_OWNER']))
+
+
 def main():
     # constants
     bot_token = os.environ['bot_token']
@@ -29,16 +35,15 @@ def main():
     botUrl = 'https://github.com/RetroArcher'
 
     # replit avatar
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     global repl_avatar
-    repl_avatar = loop.run_until_complete(get_repl_avatar(os.environ['REPL_OWNER']))
+    #repl_avatar = "https://raw.githubusercontent.com/RetroArcher/RetroArcher.branding/master/logos/RetroArcher-white-256x256.png"
+    repl_avatar = loop_repl_avatar()
 
-# context reference
-# https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
+    # context reference
+    # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
 
 
-# get list of guild ids from file
+    # get list of guild ids from file
     guild_file = 'guilds.json'
     try:
         with open(guild_file, 'r') as f:
@@ -47,7 +52,7 @@ def main():
         guild_ids = []
 
 
-# command : wiki-file
+    # command : wiki-file
     command_file = 'commands.json'
     try:
         with open(command_file, 'r') as f:
