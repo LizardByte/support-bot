@@ -4,25 +4,22 @@ from discord_slash import SlashCommand
 from discord_slash.utils.manage_commands import create_option, create_choice
 import json
 import os
+import re
 import requests
 import sys
 import urllib
-from repltalk import Client
-import asyncio
 
 # local imports
 import keep_alive
 
 
-async def get_repl_avatar(user_name):
-    user = await Client().get_user(user_name)
-    return user.avatar
+def get_repl_avatar(user_name):
+    url = f'https://replit.com/@{user_name}'
+    repl_page = requests.get(url)
 
+    image_link = re.search(r'property=\"og:image\" content=\"(https://storage\.googleapis\.com/replit/images/[a-z_0-9]*\.png)\"', repl_page.text).group(1)
 
-def loop_repl_avatar():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    return loop.run_until_complete(get_repl_avatar(os.environ['REPL_OWNER']))
+    return image_link
 
 
 def main():
@@ -36,8 +33,7 @@ def main():
 
     # replit avatar
     global repl_avatar
-    #repl_avatar = "https://raw.githubusercontent.com/RetroArcher/RetroArcher.branding/master/logos/RetroArcher-white-256x256.png"
-    repl_avatar = loop_repl_avatar()
+    repl_avatar = get_repl_avatar(os.environ['REPL_OWNER'])
 
     # context reference
     # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
