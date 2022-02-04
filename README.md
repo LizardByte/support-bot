@@ -13,14 +13,16 @@ This is a custom discord bot wish some slash commands to help with support on th
 
 ## Instructions
 * Setup an application at [discord developer portal](https://discord.com/developers/applications).
-* On `OAuth2` page, copy the client secret
 * On `Bot` page enabled these:
   * Presence Intent
   * Server Members Intent
-* Enter the following into the repl secrets
-  * bot_token = `client_secret` from discord app setup page
+  * Copy the `Token`
+* Enter the following into the repl secrets or in a `.env` file
+  * bot_token = `Token` copied previously
 * Running bot:
   * `python discord_bot.py`
+* Invite bot to server:
+  * `https://discord.com/api/oauth2/authorize?client_id=<the client id of the bot>&permissions=8&scope=bot%20applications.commands`
 
 
 ## To Do:
