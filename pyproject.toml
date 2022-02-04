@@ -7,7 +7,7 @@ authors = ["ReenigneArcher <<>>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 "discord.py" = "^1.7.3"
-Flask = "^2.0.1"
+Flask = "^2.0.2"
 discord-py-slash-command = "^3.0.3"
 requests = "^2.25.1"
 Markdown = "^3.3.4"
