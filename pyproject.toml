@@ -11,7 +11,7 @@ Flask = "^2.0.2"
 discord-py-slash-command = "^3.0.3"
 requests = "^2.25.1"
 Markdown = "^3.3.4"
-repltalk = "^1.0.0"
+repltalk = "^1.0.1"
 
 [tool.poetry.dev-dependencies]
 
