@@ -1,17 +1,16 @@
 [tool.poetry]
 name = "retroarcherdiscord-bot"
 version = "0.1.0"
-description = ""
-authors = ["ReenigneArcher <<>>"]
+description = "Bot for RetroArcher discord server"
+authors = ["ReenigneArcher"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-"discord.py" = "^1.7.3"
-Flask = "^2.0.2"
-discord-py-slash-command = "^3.0.3"
-requests = "^2.27.1"
-Markdown = "^3.3.4"
-repltalk = "^1.0.1"
+"discord.py" = "1.7.3"
+discord-py-slash-command = "3.0.3"
+Flask = "2.0.2"
+python-dotenv = "0.19.2"
+requests = "2.27.1"
 
 [tool.poetry.dev-dependencies]
 
