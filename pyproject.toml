@@ -6,9 +6,9 @@ authors = ["ReenigneArcher"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-"discord.py" = "1.7.3"
-discord-py-slash-command = "3.0.3"
+py-cord = "2.0.0b3"
 Flask = "2.0.2"
+igdb-api-v4 = "0.0.5"
 python-dotenv = "0.19.2"
 requests = "2.27.1"
 
