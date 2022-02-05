@@ -135,10 +135,15 @@ def main():
             activity=discord.Activity(type=discord.ActivityType.watching, name="the RetroArcher server")
         )
 
-        if os.environ['daily_tasks'] == 'true':
+        try:
+            os.environ['daily_tasks']
+        except KeyError:
             daily_task.start()
         else:
-            print("'daily_tasks' environment variable is disabled")
+            if os.environ['daily_tasks'] == 'true':
+                daily_task.start()
+            else:
+                print("'daily_tasks' environment variable is disabled")
 
     @bot.slash_command(name="donate",
                        description="Support the development of RetroArcher",
@@ -271,7 +276,18 @@ def main():
     @tasks.loop(minutes=60.0)
     async def daily_task():
         if datetime.utcnow().hour == int(os.getenv(key='daily_tasks_utc_hour', default=12)):
-            if os.environ['daily_releases'] == 'true':
+            daily_releases = False
+            try:
+                os.environ['daily_releases']
+            except KeyError:
+                daily_releases = True
+            else:
+                if os.environ['daily_tasks'] == 'true':
+                    daily_releases = True
+                else:
+                    print("'daily_releases' environment variable is disabled")
+
+            if daily_releases:
                 try:
                     channel = bot.get_channel(int(os.environ['daily_channel_id']))
                 except KeyError:
