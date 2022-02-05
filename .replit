@@ -1,2 +1,17 @@
+# The command that is executed when the run button is clicked.
+run = ["python", "discord_bot.py"]
+
+# The default file opened in the editor.
+entrypoint = "README.md"
+
+# Packager configuration for the Universal Package Manager
+# See https://github.com/replit/upm for supported languages.
+[packager]
 language = "python3"
-run = "python discord_bot.py"
+
+  [packager.features]
+  # Enables the package search sidebar
+  packageSearch = true
+  # Enabled package guessing
+  guessImports = false
+  
