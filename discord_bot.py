@@ -158,7 +158,13 @@ def main():
                               icon_url='https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'
                               )
 
-        embeds.append(discord.Embed(color=0xf96854))
+        embeds.append(discord.Embed(description='Includes Discord benefits.', color=0x60D1F6))
+        embeds[-1].set_author(name='MEE6',
+                              url='https://mee6.xyz/m/804382334370578482',
+                              icon_url='https://mee6.xyz/icons-decf734e1b14376075878ea568aa8d3b/apple-touch-icon-180x180.png'
+                              )
+
+        embeds.append(discord.Embed(description='Includes Discord benefits.', color=0xf96854))
         embeds[-1].set_author(name='Patreon',
                               url='https://www.patreon.com/RetroArcher',
                               icon_url='https://th.bing.com/th/id/OIP.suF0Aufc2rX2gzgPB2mXpAHaHa?pid=ImgDet&rs=1'
@@ -169,6 +175,7 @@ def main():
                               url='https://paypal.me/ReenigneArcher',
                               icon_url='https://img.etimg.com/thumb/msid-60762134,width-300,imgsize-9757,resizemode-4/paypal-reduces-remittance-certificate-charges-by-50-for-small-sellers.jpg'
                               )
+
         if user:
             await ctx.respond(f'Thank you for your support {user.mention}!',
                               embeds=embeds)
@@ -310,8 +317,20 @@ def main():
                     json_result = json.loads(byte_array)
                     # print(json.dumps(json_result, indent=2))
 
+                    game_ids = []
+
                     for game in json_result:
                         color = 0x9147FF
+
+                        try:
+                            game_id = game['game']['id']
+                        except KeyError as e:
+                            continue
+                        else:
+                            if game_id not in game_ids:
+                                game_ids.append(game_id)
+                            else:  # do not repeat the same game... even though it could be a different platform
+                                continue
 
                         try:
                             embed = discord.Embed(
@@ -324,12 +343,29 @@ def main():
                             continue
 
                         try:
-                            embed.set_thumbnail(url=f"https:{game['game']['cover']['url'].replace('_thumb', '_original')}")
+                            rating = round(game['game']['rating'] / 20, 1)
+                            embed.add_field(
+                                name='Average Rating',
+                                value=f'⭐{rating}',
+                                inline=True
+                            )
+
+                            if rating < 4.0:  # reduce number of messages per day
+                                continue
+                        except KeyError as e:
+                            continue
+
+                        try:
+                            embed.set_thumbnail(
+                                url=f"https:{game['game']['cover']['url'].replace('_thumb', '_original')}"
+                            )
                         except KeyError as e:
                             pass
 
                         try:
-                            embed.set_image(url=f"https:{game['game']['artworks'][0]['url'].replace('_thumb', '_original')}")
+                            embed.set_image(
+                                url=f"https:{game['game']['artworks'][0]['url'].replace('_thumb', '_original')}"
+                            )
                         except KeyError as e:
                             pass
 
@@ -352,20 +388,10 @@ def main():
                             pass
 
                         try:
-                            rating = round(game['game']['rating'] / 20, 1)
-                            embed.add_field(
-                                name='Average Rating',
-                                value=f'⭐{rating}',
-                                inline=True
-                            )
-                        except KeyError as e:
-                            pass
-
-                        try:
                             genres = ''
 
                             for genre in game['game']['genres']:
-                                genres += genre['name']
+                                genres += f", {genre['name']}"
 
                             embed.add_field(
                                 name='Genres',
