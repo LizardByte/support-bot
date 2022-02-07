@@ -90,7 +90,7 @@ def main():
     # slash = SlashCommand(bot, sync_commands=True)
 
     bot_name = os.environ['REPL_SLUG']
-    bot_url = 'https://github.com/RetroArcher'
+    bot_url = 'https://RetroArcher.github.io'
 
     # repl avatar
     global repl_avatar
@@ -144,6 +144,30 @@ def main():
                 daily_task.start()
             else:
                 print("'daily_tasks' environment variable is disabled")
+
+    @bot.slash_command(name="help",
+                       description="Get help with RetroArcher Bot",
+                       guild_ids=guild_ids,
+                       )
+    async def help_command(ctx):
+        description = """\
+        `/help` - Print this message.
+        
+        `/donate <opt:user>` - See how to support RetroArcher.
+        `user` - The user to mention in the response. Optional.
+        
+        `/random <opt:user>` - Return a random video game quote.
+        `user` - The user to mention in the response. Optional.
+        
+        `/wiki <req:page> <opt:user>` - Return page from the RetroArcher wiki.
+        `page` - The page to return. Required.
+        `user` - The user to mention in the response. Optional.
+        """
+
+        embed = discord.Embed(description=description, color=0xE5A00D)
+        embed.set_author(name=bot_name, url=bot_url, icon_url=repl_avatar)
+
+        await ctx.respond(embed=embed)
 
     @bot.slash_command(name="donate",
                        description="Support the development of RetroArcher",
@@ -305,7 +329,7 @@ def main():
                     wrapper = IGDBWrapper(os.environ['igdb_client_id'], igdb_auth['access_token'])
 
                     end_point = 'release_dates'
-                    fields = 'human, game.name, game.summary, game.url, game.genres.name, game.rating, game.cover.url, game.artworks.url, platform.name, platform.url, platform.platform_logo.url'
+                    fields = 'human, game.name, game.summary, game.url, game.genres.name, game.rating, game.cover.url, game.artworks.url, game.platforms.name, game.platforms.url'
                     where = f'human="{month_dictionary[datetime.utcnow().month]} {datetime.utcnow().day:02d}"*'
                     limit = 500
                     query = f'fields {fields}; where {where}; limit {limit};'
@@ -343,6 +367,15 @@ def main():
                             continue
 
                         try:
+                            embed.add_field(
+                                name='Release Date',
+                                value=game['human'],
+                                inline=True
+                            )
+                        except KeyError as e:
+                            pass
+
+                        try:
                             rating = round(game['game']['rating'] / 20, 1)
                             embed.add_field(
                                 name='Average Rating',
@@ -370,31 +403,35 @@ def main():
                             pass
 
                         try:
-                            embed.add_field(
-                                name='Release Date',
-                                value=game['human'],
-                                inline=True
-                            )
-                        except KeyError as e:
-                            pass
+                            platforms = ''
+                            name = 'Platform'
 
-                        try:
+                            for platform in game['game']['platforms']:
+                                if platforms:
+                                    platforms += ", "
+                                    name = 'Platforms'
+                                platforms += platform['name']
+
                             embed.add_field(
-                                name='Platform',
-                                value=game['platform']['name'],
-                                inline=True
+                                name=name,
+                                value=platforms,
+                                inline=False
                             )
                         except KeyError as e:
                             pass
 
                         try:
                             genres = ''
+                            name = 'Genre'
 
                             for genre in game['game']['genres']:
-                                genres += f", {genre['name']}"
+                                if genres:
+                                    genres += ", "
+                                    name = 'Genres'
+                                genres += genre['name']
 
                             embed.add_field(
-                                name='Genres',
+                                name=name,
                                 value=genres,
                                 inline=False
                             )
@@ -403,9 +440,9 @@ def main():
 
                         try:
                             embed.set_author(
-                                name=game['platform']['name'],
-                                url=game['platform']['url'],
-                                icon_url=f"https:{game['platform']['platform_logo']['url'].replace('_thumb', '_original')}"
+                                name=bot_name,
+                                url=bot_url,
+                                icon_url=repl_avatar
                             )
                         except KeyError as e:
                             pass
