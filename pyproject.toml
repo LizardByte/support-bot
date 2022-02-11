@@ -6,7 +6,7 @@ authors = ["ReenigneArcher"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-py-cord = "2.0.0b3"
+py-cord = "2.0.0b4"
 Flask = "2.0.2"
 igdb-api-v4 = "0.0.5"
 python-dotenv = "0.19.2"
