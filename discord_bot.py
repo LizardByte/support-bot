@@ -5,6 +5,7 @@ from datetime import datetime
 from igdb.wrapper import IGDBWrapper
 import json
 import os
+import random
 import re
 import requests
 import sys
@@ -34,35 +35,65 @@ month_dictionary = {
 }
 
 
-def get_repl_avatar(user_name):
-    url = f'https://replit.com/@{user_name}'
-    repl_page = requests.get(url)
+def get_repl_avatar(username: str) -> str:
+    """
+    Return the repl avatar of a given username.
+
+    :param username: Replit username
+    :return: image_link: URL of repl user's avatar
+    """
+    url = f'https://replit.com/@{username}'
+    repl_page = requests.get(url=url)
 
     image_link = re.search(
-        r'property=\"og:image\" content=\"(https://storage\.googleapis\.com/replit/images/[a-z_0-9]*\.png)\"',
-        repl_page.text
+        pattern=r'property=\"og:image\" content=\"(https://storage\.googleapis\.com/replit/images/[a-z_0-9]*\.png)\"',
+        string=repl_page.text
     ).group(1)
 
     return image_link
 
 
-def convert_wiki(git_user, git_repo, wiki_file):
+def convert_wiki(git_user: str, git_repo: str, wiki_file: str) -> str:
+    """
+    Return the text of a wiki file from a given github repo.
+
+    :param git_user: Github username
+    :param git_repo: Github repo name
+    :param wiki_file: Wiki page filename
+    :return: Text of wiki page
+    """
     url = f'https://raw.githubusercontent.com/wiki/{git_user}/{git_repo}/{wiki_file}.md'
-    response = requests.get(url)
+    response = requests.get(url=url)
 
     return response.text
 
 
-def discord_message(git_user, git_repo, wiki_file, color):
+def discord_message(git_user: str, git_repo: str, wiki_file: str, color: int):
+    """
+    Return the elements of a the discord message from the given parameters.
+
+    :param git_user: Github username
+    :param git_repo: Github repo name
+    :param wiki_file: Wiki page filename
+    :param color: hex color code
+    :return: url, embed message, color
+    """
     url = f'https://github.com/{git_user}/{git_repo}/wiki/{wiki_file}'
-    embed_message = convert_wiki(git_user, git_repo, wiki_file)
+    embed_message = convert_wiki(git_user=git_user, git_repo=git_repo, wiki_file=wiki_file)
     if len(embed_message) > 2048:
         see_more = f'...\n\n...See More on [Github]({url})'
         embed_message = f'{embed_message[:2048 - len(see_more)]}{see_more}'
     return url, embed_message, color
 
 
-def igdb_authorization(client_id, client_secret):
+def igdb_authorization(client_id: str, client_secret: str) -> dict:
+    """
+    Return an authorization dictionary for the IGDB api.
+
+    :param client_id: IGDB client id
+    :param client_secret: IGDB client secret
+    :return: authorization dictionary
+    """
     grant_type = 'client_credentials'
 
     auth_headers = {
@@ -74,11 +105,18 @@ def igdb_authorization(client_id, client_secret):
 
     token_url = 'https://id.twitch.tv/oauth2/token'
 
-    authorization = post_json(token_url, auth_headers)
+    authorization = post_json(url=token_url, headers=auth_headers)
     return authorization
 
 
-def post_json(url, headers):
+def post_json(url: str, headers: dict) -> object:
+    """
+    Make a post request in json format to the given URL using the given headers.
+
+    :param url: URL for post request
+    :param headers: Headers for post request
+    :return: result
+    """
     result = requests.post(url=url, data=headers).json()
     return result
 
@@ -93,7 +131,7 @@ bot_url = 'https://RetroArcher.github.io'
 
 # repl avatar
 global repl_avatar
-repl_avatar = get_repl_avatar(os.environ['REPL_OWNER'])
+repl_avatar = get_repl_avatar(username=os.environ['REPL_OWNER'])
 
 # context reference
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
@@ -101,23 +139,30 @@ repl_avatar = get_repl_avatar(os.environ['REPL_OWNER'])
 # get list of guild ids from file
 guild_file = 'guilds.json'
 try:
-    with open(guild_file, 'r') as f:
-        guild_ids = json.load(f)
+    with open(file=guild_file, mode='r') as f:
+        guild_ids = json.load(fp=f)
 except FileNotFoundError:
     guild_ids = []
 
 # command : wiki-file
 command_file = 'commands.json'
 try:
-    with open(command_file, 'r') as f:
-        command_dict = json.load(f)
+    with open(file=command_file, mode='r') as f:
+        command_dict = json.load(fp=f)
 except FileNotFoundError:
     print(f'Error: {command_file} not found')
-    sys.exit(1)
+    sys.exit(__status=1)
 
 # on ready
 @bot.event
 async def on_ready():
+    """
+    On Ready event.
+
+    - Update guild_file with guild ids
+    - Change the bot presence
+    - Start daily tasks
+    """
     print(f'py-cord version: {discord.__version__}')
     print(f'Logged in as || name: {bot.user.name} || id: {bot.user.id}')
     print(f'Servers connected to: {bot.guilds}')
@@ -127,8 +172,8 @@ async def on_ready():
     for guild in bot.guilds:
         print(guild.name)
         guild_ids.append(guild.id)
-    with open(guild_file, 'w') as file:
-        json.dump(guild_ids, file, indent=2)
+    with open(file=guild_file, mode='w') as file:
+        json.dump(obj=guild_ids, fp=file, indent=2)
 
     await bot.change_presence(
         activity=discord.Activity(type=discord.ActivityType.watching, name="the RetroArcher server")
@@ -149,6 +194,11 @@ async def on_ready():
                    guild_ids=guild_ids,
                    )
 async def help_command(ctx):
+    """
+    Send an embed with help information to the server and channel where the command was issued.
+    :param ctx: request message context
+    :return: embed
+    """
     description = """\
     `/help` - Print this message.
     
@@ -172,7 +222,13 @@ async def help_command(ctx):
                    description="Support the development of RetroArcher",
                    guild_ids=guild_ids,
                    )
-async def donate(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
+async def donate_command(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
+    """
+    Sends embeds with donate information to the server and channel where the command was issued.
+    :param ctx: request message context
+    :param user: username to mention in response
+    :return: embeds
+    """
     embeds = []
 
     embeds.append(discord.Embed(color=0x333))
@@ -210,9 +266,13 @@ async def donate(ctx, user: Option(discord.Member, description='Select the user 
                    description="Random video game quote",
                    guild_ids=guild_ids,
                    )
-async def random(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
-    """ Returns a random quote """
-    import random
+async def random_command(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
+    """
+    Send an embed with a random quote to the server and channel where the command was issued.
+    :param ctx: request message context
+    :param user: username to mention in response
+    :return: embed
+    """
     quote_list = [
         "@!#?@!",
         "Ah shit, here we go again",
@@ -256,7 +316,7 @@ async def random(ctx, user: Option(discord.Member, description='Select the user 
         "You must construct additional pylons.",
     ]
 
-    quote = random.choice(quote_list)
+    quote = random.choice(seq=quote_list)
 
     embed = discord.Embed(description=quote, color=0xE5A00D)
     embed.set_author(name=bot_name, url=bot_url, icon_url=repl_avatar)
@@ -276,16 +336,23 @@ for key, value in command_dict.items():
                    description="Return any of the listed Wiki pages as a message.",
                    guild_ids=guild_ids,
                    )
-async def wiki(ctx,
-               page: Option(str,
-                            description='Select the wiki page',
-                            choices=wiki_choices,
-                            required=True
-                            ),
-               user: Option(discord.Member,
-                            description='Select the user to mention'
-                            ) = None
-               ):
+async def wiki_command(ctx,
+                       page: Option(str,
+                                    description='Select the wiki page',
+                                    choices=wiki_choices,
+                                    required=True
+                                    ),
+                       user: Option(discord.Member,
+                                    description='Select the user to mention'
+                                    ) = None
+                       ):
+    """
+    Send an embed with a wiki text to the server and channel where the command was issued.
+    :param ctx: request message context
+    :param page: wiki page to return in response
+    :param user: username to mention in response
+    :return: embed
+    """
     v = command_dict[page]
 
     git_user = 'RetroArcher'
@@ -294,7 +361,7 @@ async def wiki(ctx,
     title = v.replace('-', ' ').replace('_', ' ').strip()
     color = 0xE5A00D
 
-    url, embed_message, color = discord_message(git_user, git_repo, wiki_file, color)
+    url, embed_message, color = discord_message(git_user=git_user, git_repo=git_repo, wiki_file=wiki_file, color=color)
     embed = discord.Embed(title=title, url=url, description=embed_message, color=color)
     embed.set_author(name=bot_name, url=bot_url, icon_url=repl_avatar)
 
@@ -305,6 +372,11 @@ async def wiki(ctx,
 
 @tasks.loop(minutes=60.0)
 async def daily_task():
+    """
+    Functions to run on a schedule.
+
+    - Create an embed and thread for each game released on this day in history, if enabled.
+    """
     if datetime.utcnow().hour == int(os.getenv(key='daily_tasks_utc_hour', default=12)):
         daily_releases = False
         try:
@@ -325,7 +397,7 @@ async def daily_task():
             else:
                 igdb_auth = igdb_authorization(client_id=os.environ['igdb_client_id'],
                                                client_secret=os.environ['igdb_client_secret'])
-                wrapper = IGDBWrapper(os.environ['igdb_client_id'], igdb_auth['access_token'])
+                wrapper = IGDBWrapper(client_id=os.environ['igdb_client_id'], auth_token=igdb_auth['access_token'])
 
                 end_point = 'release_dates'
                 fields = 'human, game.name, game.summary, game.url, game.genres.name, game.rating, game.cover.url, game.artworks.url, game.platforms.name, game.platforms.url'
@@ -333,10 +405,7 @@ async def daily_task():
                 limit = 500
                 query = f'fields {fields}; where {where}; limit {limit};'
 
-                byte_array = wrapper.api_request(
-                    end_point,
-                    query
-                )
+                byte_array = wrapper.api_request(endpoint=end_point, query=query)
                 json_result = json.loads(byte_array)
                 # print(json.dumps(json_result, indent=2))
 
@@ -351,7 +420,7 @@ async def daily_task():
                         continue
                     else:
                         if game_id not in game_ids:
-                            game_ids.append(game_id)
+                            game_ids.append(__object=game_id)
                         else:  # do not repeat the same game... even though it could be a different platform
                             continue
 
@@ -457,12 +526,12 @@ async def daily_task():
 keep_alive.keep_alive()  # Start the web server
 
 try:
-    bot.loop.run_until_complete(bot.start(bot_token))  # Login the bot
+    bot.loop.run_until_complete(future=bot.start(token=bot_token))  # Login the bot
 except KeyboardInterrupt:
     print("Keyboard Interrupt Detected")
 finally:
     print("Attempting to stop daily tasks")
     daily_task.stop()
     print("Attempting to close bot connection")
-    bot.loop.run_until_complete(bot.close())
+    bot.loop.run_until_complete(future=bot.close())
     print("Closed bot")
