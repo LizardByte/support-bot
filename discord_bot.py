@@ -4,9 +4,9 @@ from discord.ext import tasks
 from datetime import datetime
 from igdb.wrapper import IGDBWrapper
 import json
+from libgravatar import Gravatar
 import os
 import random
-import re
 import requests
 import sys
 import urllib
@@ -35,27 +35,22 @@ month_dictionary = {
 }
 
 
-def get_repl_avatar(username: str) -> str:
+def get_bot_avatar(gravatar: str) -> str:
+    """Return the gravatar of a given email.
+
+    :param gravatar: the gravatar email
+    :return: url to image
     """
-    Return the repl avatar of a given username.
 
-    :param username: Replit username
-    :return: image_link: URL of repl user's avatar
-    """
-    url = f'https://replit.com/@{username}'
-    repl_page = requests.get(url=url)
+    g = Gravatar(email=gravatar)
+    image_url = g.get_image()
+    print(image_url)
 
-    image_link = re.search(
-        pattern=r'property=\"og:image\" content=\"(https://storage\.googleapis\.com/replit/images/[a-z_0-9]*\.png)\"',
-        string=repl_page.text
-    ).group(1)
-
-    return image_link
+    return image_url
 
 
 def convert_wiki(git_user: str, git_repo: str, wiki_file: str) -> str:
-    """
-    Return the text of a wiki file from a given github repo.
+    """Return the text of a wiki file from a given github repo.
 
     :param git_user: Github username
     :param git_repo: Github repo name
@@ -69,8 +64,7 @@ def convert_wiki(git_user: str, git_repo: str, wiki_file: str) -> str:
 
 
 def discord_message(git_user: str, git_repo: str, wiki_file: str, color: int):
-    """
-    Return the elements of a the discord message from the given parameters.
+    """Return the elements of a the discord message from the given parameters.
 
     :param git_user: Github username
     :param git_repo: Github repo name
@@ -87,8 +81,7 @@ def discord_message(git_user: str, git_repo: str, wiki_file: str, color: int):
 
 
 def igdb_authorization(client_id: str, client_secret: str) -> dict:
-    """
-    Return an authorization dictionary for the IGDB api.
+    """Return an authorization dictionary for the IGDB api.
 
     :param client_id: IGDB client id
     :param client_secret: IGDB client secret
@@ -109,7 +102,7 @@ def igdb_authorization(client_id: str, client_secret: str) -> dict:
     return authorization
 
 
-def post_json(url: str, headers: dict) -> object:
+def post_json(url: str, headers: dict) -> dict:
     """
     Make a post request in json format to the given URL using the given headers.
 
@@ -124,14 +117,12 @@ def post_json(url: str, headers: dict) -> object:
 # constants
 bot_token = os.environ['bot_token']
 bot = discord.Bot(intents=discord.Intents.all(), auto_sync_commands=True)
-# slash = SlashCommand(bot, sync_commands=True)
 
-bot_name = os.environ['REPL_SLUG']
+bot_name = 'RetroArcher Bot'
 bot_url = 'https://RetroArcher.github.io'
 
-# repl avatar
-global repl_avatar
-repl_avatar = get_repl_avatar(username=os.environ['REPL_OWNER'])
+# gravatar
+gravatar = get_bot_avatar(gravatar=os.environ['gravatar_email'])
 
 # context reference
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
@@ -153,8 +144,8 @@ except FileNotFoundError:
     print(f'Error: {command_file} not found')
     sys.exit(__status=1)
 
-# on ready
-@bot.event
+
+@bot.event  # on ready
 async def on_ready():
     """
     On Ready event.
@@ -166,9 +157,8 @@ async def on_ready():
     print(f'py-cord version: {discord.__version__}')
     print(f'Logged in as || name: {bot.user.name} || id: {bot.user.id}')
     print(f'Servers connected to: {bot.guilds}')
-    print(f"Connected to {os.environ['REPL_SLUG']}!")
 
-    guild_ids = []
+    global guild_ids
     for guild in bot.guilds:
         print(guild.name)
         guild_ids.append(guild.id)
@@ -188,6 +178,7 @@ async def on_ready():
             daily_task.start()
         else:
             print("'daily_tasks' environment variable is disabled")
+
 
 @bot.slash_command(name="help",
                    description="Get help with RetroArcher Bot",
@@ -214,9 +205,10 @@ async def help_command(ctx):
     """
 
     embed = discord.Embed(description=description, color=0xE5A00D)
-    embed.set_author(name=bot_name, url=bot_url, icon_url=repl_avatar)
+    embed.set_footer(text='RetroArcher Bot', icon_url=gravatar)
 
     await ctx.respond(embed=embed)
+
 
 @bot.slash_command(name="donate",
                    description="Support the development of RetroArcher",
@@ -261,6 +253,7 @@ async def donate_command(ctx, user: Option(discord.Member, description='Select t
     else:
         await ctx.respond('Thank you for your support!',
                           embeds=embeds)
+
 
 @bot.slash_command(name="random",
                    description="Random video game quote",
@@ -319,7 +312,7 @@ async def random_command(ctx, user: Option(discord.Member, description='Select t
     quote = random.choice(seq=quote_list)
 
     embed = discord.Embed(description=quote, color=0xE5A00D)
-    embed.set_author(name=bot_name, url=bot_url, icon_url=repl_avatar)
+    embed.set_footer(text='RetroArcher Bot', icon_url=gravatar)
 
     if user:
         await ctx.respond(user.mention, embed=embed)
@@ -331,6 +324,7 @@ async def random_command(ctx, user: Option(discord.Member, description='Select t
 wiki_choices = []
 for key, value in command_dict.items():
     wiki_choices.append(OptionChoice(name=key, value=key))
+
 
 @bot.slash_command(name="wiki",
                    description="Return any of the listed Wiki pages as a message.",
@@ -363,12 +357,13 @@ async def wiki_command(ctx,
 
     url, embed_message, color = discord_message(git_user=git_user, git_repo=git_repo, wiki_file=wiki_file, color=color)
     embed = discord.Embed(title=title, url=url, description=embed_message, color=color)
-    embed.set_author(name=bot_name, url=bot_url, icon_url=repl_avatar)
+    embed.set_footer(text='RetroArcher Bot', icon_url=gravatar)
 
     if user:
         await ctx.respond(user.mention, embed=embed)
     else:
         await ctx.respond(embed=embed)
+
 
 @tasks.loop(minutes=60.0)
 async def daily_task():
@@ -510,7 +505,7 @@ async def daily_task():
                         embed.set_author(
                             name=bot_name,
                             url=bot_url,
-                            icon_url=repl_avatar
+                            icon_url=gravatar
                         )
                     except KeyError as e:
                         pass
@@ -523,7 +518,13 @@ async def daily_task():
                     message = await channel.send(embed=embed)
                     thread = await message.create_thread(name=embed.title)
 
-keep_alive.keep_alive()  # Start the web server
+# to run in replit
+try:
+    os.environ['REPL_SLUG']
+except KeyError:
+    pass  # not running in replit
+else:
+    keep_alive.keep_alive()  # Start the web server
 
 try:
     bot.loop.run_until_complete(future=bot.start(token=bot_token))  # Login the bot

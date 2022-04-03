@@ -7,6 +7,7 @@ This is a custom discord bot with some slash commands to help with support on th
 
 | command | argument 1 | argument 2 | description                      |
 | ------- | ---------- | ---------- | -------------------------------- |
+| /help   |            |            | Return help message              |
 | /donate | user       |            | Return donation links            |
 | /random |            |            | Return a random video game quote |
 | /wiki   | page       | user       | Return the specified wiki page   |
@@ -29,10 +30,9 @@ This is a custom discord bot with some slash commands to help with support on th
   | daily_releases       | False    | true    | Send a message for each game released on this day in history. |
   | daily_channel_id     | False    | None    | Required if daily_tasks is enabled.                           |
   | daily_tasks_utc_hour | False    | 12      | The hour to run daily tasks.                                  |
+  | gravatar_email       | False    | None    | Gravatar email address for bot avatar.                        |
   | igdb_client_id       | False    | None    | Required if daily_releases is enabled.                        |
   | igdb_client_secret   | False    | None    | Required if daily_releases is enabled.                        |
-  | REPL_SLUG            | False    | None    | Fake this when running locally. Value doesn't matter.         |
-  | REPL_OWNER           | False    | None    | Fake this when running locally. Value should be username.     |
 
 * Running bot:
   * `python discord_bot.py`
