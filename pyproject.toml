@@ -7,9 +7,9 @@ authors = ["ReenigneArcher"]
 [tool.poetry.dependencies]
 python = "^3.8"
 py-cord = "2.0.0b3"
-Flask = "2.0.2"
+Flask = "2.1.1"
 igdb-api-v4 = "0.0.5"
-python-dotenv = "0.19.2"
+python-dotenv = "0.20.0"
 requests = "2.27.1"
 
 [tool.poetry.dev-dependencies]
