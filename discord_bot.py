@@ -174,7 +174,7 @@ async def on_ready():
     except KeyError:
         daily_task.start()
     else:
-        if os.environ['daily_tasks'] == 'true':
+        if os.environ['daily_tasks'].lower() == 'true':
             daily_task.start()
         else:
             print("'daily_tasks' environment variable is disabled")
@@ -379,7 +379,7 @@ async def daily_task():
         except KeyError:
             daily_releases = True
         else:
-            if os.environ['daily_tasks'] == 'true':
+            if os.environ['daily_tasks'].lower() == 'true':
                 daily_releases = True
             else:
                 print("'daily_releases' environment variable is disabled")
