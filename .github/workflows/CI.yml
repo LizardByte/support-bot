@@ -42,5 +42,6 @@ jobs:
         with:
           name: ${{ needs.check_changelog.outputs.next_version }}
           tag: ${{ needs.check_changelog.outputs.next_version }}
+          token: ${{ secrets.GH_PAT }}
           allowUpdates: false
           body: ${{ needs.check_changelog.outputs.release_body }}
