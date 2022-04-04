@@ -1,6 +1,6 @@
-py-cord==2.0.0b3
 Flask==2.0.2
 igdb-api-v4==0.0.5
 libgravatar==1.0.0
+py-cord==2.0.0b3
 python-dotenv==0.19.2
 requests==2.27.1
