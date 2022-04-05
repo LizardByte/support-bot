@@ -1,4 +1,4 @@
-FROM python:3.9.12-bullseye-slim
+FROM python:3.9.12-slim-bullseye
 
 # Basic config
 ARG daily_tasks=true
