@@ -68,7 +68,7 @@ jobs:
 
       - name: Test Image
         run: |
-          docker run --rm ${{ env.TEST_TAG }}
+          docker run --rm -e 'bot_token=${{ secrets.DISCORD_TEST_BOT_TOKEN }}' ${{ env.TEST_TAG }}
 
       - name: Build and push (non master)
         if: ${{ github.event_name == 'push' && github.ref != 'refs/heads/master' }}
