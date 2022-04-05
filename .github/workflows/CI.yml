@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       packages: write
-      contents: read
+      contents: write
     needs: check_changelog
 
     env:
