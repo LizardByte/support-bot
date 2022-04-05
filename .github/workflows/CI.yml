@@ -5,7 +5,7 @@ on:
     branches: [master, nightly]
     types: [opened, synchronize, edited, reopened]
   push:
-    branches: [master]
+    branches: [master, nightly]
   workflow_dispatch:
 
 jobs:
@@ -28,13 +28,71 @@ jobs:
       last_version: ${{ steps.verify_changelog.outputs.latest_release_tag_name }}
       release_body:  ${{ steps.verify_changelog.outputs.changelog_parser_description }}
 
-  build:
-    runs-on: ubuntu-18.04
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     needs: check_changelog
+
+    env:
+      TEST_TAG: ghcr.io/${{ secrets.DOCKER_HUB_USERNAME }}/discord-bot:test
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and export to Docker
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./Dockerfile
+          load: true
+          tags: ${{ env.TEST_TAG }}
+
+      - name: Test Image
+        run: |
+          docker run -d -e 'bot_token=${{ secrets.DISCORD_TEST_BOT_TOKEN }}' ${{ env.TEST_TAG }}
+
+      - name: Build and push (non master)
+        if: ${{ github.event_name == 'push' && github.ref != 'refs/heads/master' }}
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/discord-bot:${{ github.ref_name }}
+            ghcr.io/${{ secrets.DOCKER_HUB_USERNAME }}/discord-bot:${{ github.ref_name }}
+
+      - name: Build and push (master)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/discord-bot:latest
+            ghcr.io/${{ secrets.DOCKER_HUB_USERNAME }}/discord-bot:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/discord-bot:${{ needs.check_changelog.outputs.next_version }}
+            ghcr.io/${{ secrets.DOCKER_HUB_USERNAME }}/discord-bot:${{ needs.check_changelog.outputs.next_version }}
 
       - name: Create/Update GitHub Release
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
@@ -42,6 +100,6 @@ jobs:
         with:
           name: ${{ needs.check_changelog.outputs.next_version }}
           tag: ${{ needs.check_changelog.outputs.next_version }}
-          token: ${{ secrets.GH_PAT }}
-          allowUpdates: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
           body: ${{ needs.check_changelog.outputs.release_body }}
