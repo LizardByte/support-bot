@@ -21,19 +21,19 @@ This is a custom discord bot with some slash commands to help with support on th
   * Server Members Intent
   * Copy the `Token`
 * Add the following as environment variables or in a `.env` file (use `sample.env` as an example).  
-  :exclamation_mark: if using Docker these can be arguments.  
+  :exclamation: if using Docker these can be arguments.  
   :warning: Never publicly expose your tokens, secrets, or ids.  
 
   | variable             | required | default | description                                                   |
   | -------------------- | -------- | ------- | ------------------------------------------------------------- |
-  | bot_token            | True     | None    | Token from Bot page on discord developer portal.              |
-  | daily_tasks          | False    | true    | Daily tasks on or off.                                        |
-  | daily_releases       | False    | true    | Send a message for each game released on this day in history. |
-  | daily_channel_id     | False    | None    | Required if daily_tasks is enabled.                           |
-  | daily_tasks_utc_hour | False    | 12      | The hour to run daily tasks.                                  |
-  | gravatar_email       | False    | None    | Gravatar email address for bot avatar.                        |
-  | igdb_client_id       | False    | None    | Required if daily_releases is enabled.                        |
-  | igdb_client_secret   | False    | None    | Required if daily_releases is enabled.                        |
+  | BOT_TOKEN            | True     | None    | Token from Bot page on discord developer portal.              |
+  | DAILY_TASKS          | False    | true    | Daily tasks on or off.                                        |
+  | DAILY_RELEASES       | False    | true    | Send a message for each game released on this day in history. |
+  | DAILY_CHANNEL_ID     | False    | None    | Required if daily_tasks is enabled.                           |
+  | DAILY_TASKS_UTC_HOUR | False    | 12      | The hour to run daily tasks.                                  |
+  | GRAVATAR_EMAIL       | False    | None    | Gravatar email address for bot avatar.                        |
+  | IGDB_CLIENT_ID       | False    | None    | Required if daily_releases is enabled.                        |
+  | IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
 
 * Running bot:
   * `python discord_bot.py`

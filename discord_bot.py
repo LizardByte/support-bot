@@ -9,7 +9,7 @@ import os
 import random
 import requests
 import sys
-import urllib
+from urllib import parse
 
 # local imports
 import keep_alive
@@ -44,7 +44,6 @@ def get_bot_avatar(gravatar: str) -> str:
 
     g = Gravatar(email=gravatar)
     image_url = g.get_image()
-    print(image_url)
 
     return image_url
 
@@ -115,14 +114,14 @@ def post_json(url: str, headers: dict) -> dict:
 
 
 # constants
-bot_token = os.environ['bot_token']
+bot_token = os.environ['BOT_TOKEN']
 bot = discord.Bot(intents=discord.Intents.all(), auto_sync_commands=True)
 
 bot_name = 'RetroArcher Bot'
 bot_url = 'https://RetroArcher.github.io'
 
-# gravatar
-gravatar = get_bot_avatar(gravatar=os.environ['gravatar_email'])
+# avatar
+avatar = get_bot_avatar(gravatar=os.environ['GRAVATAR_EMAIL'])
 
 # context reference
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
@@ -170,14 +169,14 @@ async def on_ready():
     )
 
     try:
-        os.environ['daily_tasks']
+        os.environ['DAILY_TASKS']
     except KeyError:
         daily_task.start()
     else:
-        if os.environ['daily_tasks'].lower() == 'true':
+        if os.environ['DAILY_TASKS'].lower() == 'true':
             daily_task.start()
         else:
-            print("'daily_tasks' environment variable is disabled")
+            print("'DAILY_TASKS' environment variable is disabled")
 
 
 @bot.slash_command(name="help",
@@ -205,7 +204,7 @@ async def help_command(ctx):
     """
 
     embed = discord.Embed(description=description, color=0xE5A00D)
-    embed.set_footer(text='RetroArcher Bot', icon_url=gravatar)
+    embed.set_footer(text='RetroArcher Bot', icon_url=avatar)
 
     await ctx.respond(embed=embed)
 
@@ -224,28 +223,32 @@ async def donate_command(ctx, user: Option(discord.Member, description='Select t
     embeds = []
 
     embeds.append(discord.Embed(color=0x333))
-    embeds[-1].set_author(name='Github Sponsors',
-                          url='https://github.com/sponsors/ReenigneArcher',
-                          icon_url='https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'
-                          )
+    embeds[-1].set_author(
+        name='Github Sponsors',
+        url='https://github.com/sponsors/ReenigneArcher',
+        icon_url='https://github.com/fluidicon.png'
+    )
 
     embeds.append(discord.Embed(description='Includes Discord benefits.', color=0x60D1F6))
-    embeds[-1].set_author(name='MEE6',
-                          url='https://mee6.xyz/m/804382334370578482',
-                          icon_url='https://mee6.xyz/icons-decf734e1b14376075878ea568aa8d3b/apple-touch-icon-180x180.png'
-                          )
+    embeds[-1].set_author(
+        name='MEE6',
+        url='https://mee6.xyz/m/804382334370578482',
+        icon_url='https://mee6.xyz/icons-decf734e1b14376075878ea568aa8d3b/apple-touch-icon-180x180.png'
+    )
 
     embeds.append(discord.Embed(description='Includes Discord benefits.', color=0xf96854))
-    embeds[-1].set_author(name='Patreon',
-                          url='https://www.patreon.com/RetroArcher',
-                          icon_url='https://th.bing.com/th/id/OIP.suF0Aufc2rX2gzgPB2mXpAHaHa?pid=ImgDet&rs=1'
-                          )
+    embeds[-1].set_author(
+        name='Patreon',
+        url='https://www.patreon.com/RetroArcher',
+        icon_url='https://c5.patreon.com/external/favicon/apple-touch-icon.png?v=jw6AR4Rg74'
+    )
 
     embeds.append(discord.Embed(color=0x003087))
-    embeds[-1].set_author(name='PayPal',
-                          url='https://paypal.me/ReenigneArcher',
-                          icon_url='https://img.etimg.com/thumb/msid-60762134,width-300,imgsize-9757,resizemode-4/paypal-reduces-remittance-certificate-charges-by-50-for-small-sellers.jpg'
-                          )
+    embeds[-1].set_author(
+        name='PayPal',
+        url='https://paypal.me/ReenigneArcher',
+        icon_url='https://www.paypalobjects.com/webstatic/icon/pp196.png'
+    )
 
     if user:
         await ctx.respond(f'Thank you for your support {user.mention}!',
@@ -312,7 +315,7 @@ async def random_command(ctx, user: Option(discord.Member, description='Select t
     quote = random.choice(seq=quote_list)
 
     embed = discord.Embed(description=quote, color=0xE5A00D)
-    embed.set_footer(text='RetroArcher Bot', icon_url=gravatar)
+    embed.set_footer(text='RetroArcher Bot', icon_url=avatar)
 
     if user:
         await ctx.respond(user.mention, embed=embed)
@@ -351,13 +354,13 @@ async def wiki_command(ctx,
 
     git_user = 'RetroArcher'
     git_repo = 'RetroArcher.bundle'
-    wiki_file = urllib.parse.quote(v)
+    wiki_file = parse.quote(v)
     title = v.replace('-', ' ').replace('_', ' ').strip()
     color = 0xE5A00D
 
     url, embed_message, color = discord_message(git_user=git_user, git_repo=git_repo, wiki_file=wiki_file, color=color)
     embed = discord.Embed(title=title, url=url, description=embed_message, color=color)
-    embed.set_footer(text='RetroArcher Bot', icon_url=gravatar)
+    embed.set_footer(text='RetroArcher Bot', icon_url=avatar)
 
     if user:
         await ctx.respond(user.mention, embed=embed)
@@ -375,24 +378,24 @@ async def daily_task():
     if datetime.utcnow().hour == int(os.getenv(key='daily_tasks_utc_hour', default=12)):
         daily_releases = False
         try:
-            os.environ['daily_releases']
+            os.environ['DAILY_RELEASES']
         except KeyError:
             daily_releases = True
         else:
-            if os.environ['daily_tasks'].lower() == 'true':
+            if os.environ['DAILY_TASKS'].lower() == 'true':
                 daily_releases = True
             else:
-                print("'daily_releases' environment variable is disabled")
+                print("'DAILY_RELEASES' environment variable is disabled")
 
         if daily_releases:
             try:
-                channel = bot.get_channel(int(os.environ['daily_channel_id']))
+                channel = bot.get_channel(int(os.environ['DAILY_CHANNEL_ID']))
             except KeyError:
-                print("'daily_channel_id' not defined in environment variables.")
+                print("'DAILY_CHANNEL_ID' not defined in environment variables.")
             else:
-                igdb_auth = igdb_authorization(client_id=os.environ['igdb_client_id'],
-                                               client_secret=os.environ['igdb_client_secret'])
-                wrapper = IGDBWrapper(client_id=os.environ['igdb_client_id'], auth_token=igdb_auth['access_token'])
+                igdb_auth = igdb_authorization(client_id=os.environ['IGDB_CLIENT_ID'],
+                                               client_secret=os.environ['IGDB_CLIENT_SECRET'])
+                wrapper = IGDBWrapper(client_id=os.environ['IGDB_CLIENT_ID'], auth_token=igdb_auth['access_token'])
 
                 end_point = 'release_dates'
                 fields = 'human, game.name, game.summary, game.url, game.genres.name, game.rating, game.cover.url, game.artworks.url, game.platforms.name, game.platforms.url'
@@ -400,7 +403,7 @@ async def daily_task():
                 limit = 500
                 query = f'fields {fields}; where {where}; limit {limit};'
 
-                byte_array = wrapper.api_request(endpoint=end_point, query=query)
+                byte_array = bytes(wrapper.api_request(endpoint=end_point, query=query))
                 json_result = json.loads(byte_array)
                 # print(json.dumps(json_result, indent=2))
 
@@ -411,11 +414,11 @@ async def daily_task():
 
                     try:
                         game_id = game['game']['id']
-                    except KeyError as e:
+                    except KeyError:
                         continue
                     else:
                         if game_id not in game_ids:
-                            game_ids.append(__object=game_id)
+                            game_ids.append(game_id)
                         else:  # do not repeat the same game... even though it could be a different platform
                             continue
 
@@ -426,7 +429,7 @@ async def daily_task():
                             description=game['game']['summary'][0:2000-1],
                             color=color
                         )
-                    except KeyError as e:
+                    except KeyError:
                         continue
 
                     try:
@@ -435,7 +438,7 @@ async def daily_task():
                             value=game['human'],
                             inline=True
                         )
-                    except KeyError as e:
+                    except KeyError:
                         pass
 
                     try:
@@ -448,21 +451,21 @@ async def daily_task():
 
                         if rating < 4.0:  # reduce number of messages per day
                             continue
-                    except KeyError as e:
+                    except KeyError:
                         continue
 
                     try:
                         embed.set_thumbnail(
                             url=f"https:{game['game']['cover']['url'].replace('_thumb', '_original')}"
                         )
-                    except KeyError as e:
+                    except KeyError:
                         pass
 
                     try:
                         embed.set_image(
                             url=f"https:{game['game']['artworks'][0]['url'].replace('_thumb', '_original')}"
                         )
-                    except KeyError as e:
+                    except KeyError:
                         pass
 
                     try:
@@ -480,7 +483,7 @@ async def daily_task():
                             value=platforms,
                             inline=False
                         )
-                    except KeyError as e:
+                    except KeyError:
                         pass
 
                     try:
@@ -498,16 +501,16 @@ async def daily_task():
                             value=genres,
                             inline=False
                         )
-                    except KeyError as e:
+                    except KeyError:
                         pass
 
                     try:
                         embed.set_author(
                             name=bot_name,
                             url=bot_url,
-                            icon_url=gravatar
+                            icon_url=avatar
                         )
-                    except KeyError as e:
+                    except KeyError:
                         pass
 
                     embed.set_footer(
@@ -517,6 +520,8 @@ async def daily_task():
 
                     message = await channel.send(embed=embed)
                     thread = await message.create_thread(name=embed.title)
+
+                    print(f'thread created: {thread.name}')
 
 # to run in replit
 try:
