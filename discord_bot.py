@@ -382,7 +382,7 @@ async def daily_task():
         except KeyError:
             daily_releases = True
         else:
-            if os.environ['DAILY_TASKS'].lower() == 'true':
+            if os.environ['DAILY_RELEASES'].lower() == 'true':
                 daily_releases = True
             else:
                 print("'DAILY_RELEASES' environment variable is disabled")
