@@ -40,6 +40,6 @@ jobs:
         with:
           name: ${{ needs.check_changelog.outputs.next_version }}
           tag: ${{ needs.check_changelog.outputs.next_version }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_BOT_TOKEN }}
           allowUpdates: true
           body: ${{ needs.check_changelog.outputs.release_body }}
