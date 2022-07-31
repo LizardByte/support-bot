@@ -5,7 +5,7 @@ Create and run the container (substitute your `<values>`):
 
 ```bash
 docker run -d \
-  --name=retroarcher-discord-bot \
+  --name=lizardbyte-discord-bot \
   --restart=unless-stopped \
   -e BOT_TOKEN=<BOT_TOKEN> \
   -e DAILY_CHANNEL_ID=<DAILY_CHANNEL_ID> \
@@ -15,18 +15,18 @@ docker run -d \
   -e GRAVATAR_EMAIL=<GRAVATAR_EMAIL> \
   -e IGDB_CLIENT_ID=<IGDB_CLIENT_ID> \
   -e IGDB_CLIENT_SECRET=<IGDB_CLIENT_SECRET> \
-  retroarcher/discord-bot
+  lizardbyte/discord-bot
 ```
 
 To update the container it must be removed and recreated:
 
 ```bash
 # Stop the container
-docker stop retroarcher-discord-bot
+docker stop lizardbyte-discord-bot
 # Remove the container
-docker rm retroarcher-discord-bot
+docker rm lizardbyte-discord-bot
 # Pull the latest update
-docker pull retroarcher/discord-bot
+docker pull lizardbyte/discord-bot
 # Run the container with the same parameters as before
 docker run -d ...
 ```
@@ -38,9 +38,9 @@ Create a `docker-compose.yml` file with the following contents (substitute your 
 ```yaml
 version: '3'
 services:
-  retroarcher-discord-bot:
-    image: retroarcher/discord-bot
-    container_name: retroarcher-discord-bot
+  lizardbyte-discord-bot:
+    image: lizardbyte/discord-bot
+    container_name: lizardbyte-discord-bot
     restart: unless-stopped
     environment:
       - BOT_TOKEN=<BOT_TOKEN>
