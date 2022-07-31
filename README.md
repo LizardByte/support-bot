@@ -1,17 +1,16 @@
-# RetroArcher.discord-bot
-Discord bot written in python to help manage the RetroArcher discord server.
+# discord-bot
+Discord bot written in python to help manage the LizardByte discord server.
 
 
 ## Overview
-This is a custom discord bot with some slash commands to help with support on the RetroArcher discord server.
+This is a custom discord bot with some slash commands to help with support on the LizardByte discord server.
 
-| command | argument 1 | argument 2 | description                      |
-| ------- | ---------- | ---------- | -------------------------------- |
-| /help   |            |            | Return help message              |
-| /donate | user       |            | Return donation links            |
-| /random |            |            | Return a random video game quote |
-| /wiki   | page       | user       | Return the specified wiki page   |
-
+| command | argument 1 | argument 2 | argument 3 | description                      |
+|---------|------------|------------|------------|----------------------------------|
+| /help   |            |            |            | Return help message              |
+| /docs   | project    | version    | user       | Return the specified wiki page   |
+| /donate | user       |            |            | Return donation links            |
+| /random |            |            |            | Return a random video game quote |
 
 
 ## Instructions
@@ -24,16 +23,17 @@ This is a custom discord bot with some slash commands to help with support on th
   :exclamation: if using Docker these can be arguments.  
   :warning: Never publicly expose your tokens, secrets, or ids.  
 
-  | variable             | required | default | description                                                   |
-  | -------------------- | -------- | ------- | ------------------------------------------------------------- |
-  | BOT_TOKEN            | True     | None    | Token from Bot page on discord developer portal.              |
-  | DAILY_TASKS          | False    | true    | Daily tasks on or off.                                        |
-  | DAILY_RELEASES       | False    | true    | Send a message for each game released on this day in history. |
-  | DAILY_CHANNEL_ID     | False    | None    | Required if daily_tasks is enabled.                           |
-  | DAILY_TASKS_UTC_HOUR | False    | 12      | The hour to run daily tasks.                                  |
-  | GRAVATAR_EMAIL       | False    | None    | Gravatar email address for bot avatar.                        |
-  | IGDB_CLIENT_ID       | False    | None    | Required if daily_releases is enabled.                        |
-  | IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
+| variable             | required | default | description                                                   |
+|----------------------|----------|---------|---------------------------------------------------------------|
+| BOT_TOKEN            | True     | None    | Token from Bot page on discord developer portal.              |
+| DAILY_TASKS          | False    | true    | Daily tasks on or off.                                        |
+| DAILY_RELEASES       | False    | true    | Send a message for each game released on this day in history. |
+| DAILY_CHANNEL_ID     | False    | None    | Required if daily_tasks is enabled.                           |
+| DAILY_TASKS_UTC_HOUR | False    | 12      | The hour to run daily tasks.                                  |
+| GRAVATAR_EMAIL       | False    | None    | Gravatar email address for bot avatar.                        |
+| IGDB_CLIENT_ID       | False    | None    | Required if daily_releases is enabled.                        |
+| IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
+| READTHEDOCS_TOKEN    | False    | None    | Required for docs slash command.                              |
 
 * Running bot:
   * `python discord_bot.py`

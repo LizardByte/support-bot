@@ -1,15 +1,19 @@
+# standard imports
+from datetime import datetime
+from io import BytesIO
+import json
+import os
+import random
+import sys
+from urllib import parse
+
+# lib imports
 import discord
 from discord.commands import Option, OptionChoice
 from discord.ext import tasks
-from datetime import datetime
 from igdb.wrapper import IGDBWrapper
-import json
 from libgravatar import Gravatar
-import os
-import random
 import requests
-import sys
-from urllib import parse
 
 # local imports
 import keep_alive
@@ -18,7 +22,10 @@ import keep_alive
 from dotenv import load_dotenv
 load_dotenv(override=False)  # environment secrets take priority over .env file
 
-# convert month number to igdb human readable month
+# env variables
+READTHEDOCS_TOKEN = os.environ['READTHEDOCS_TOKEN']
+
+# convert month number to igdb human-readable month
 month_dictionary = {
     1: 'Jan',
     2: 'Feb',
@@ -46,20 +53,6 @@ def get_bot_avatar(gravatar: str) -> str:
     image_url = g.get_image()
 
     return image_url
-
-
-def convert_wiki(git_user: str, git_repo: str, wiki_file: str) -> str:
-    """Return the text of a wiki file from a given github repo.
-
-    :param git_user: Github username
-    :param git_repo: Github repo name
-    :param wiki_file: Wiki page filename
-    :return: Text of wiki page
-    """
-    url = f'https://raw.githubusercontent.com/wiki/{git_user}/{git_repo}/{wiki_file}.md'
-    response = requests.get(url=url)
-
-    return response.text
 
 
 def discord_message(git_user: str, git_repo: str, wiki_file: str, color: int):
@@ -117,11 +110,15 @@ def post_json(url: str, headers: dict) -> dict:
 bot_token = os.environ['BOT_TOKEN']
 bot = discord.Bot(intents=discord.Intents.all(), auto_sync_commands=True)
 
-bot_name = 'RetroArcher Bot'
-bot_url = 'https://RetroArcher.github.io'
+org_name = 'LizardByte'
+bot_name = f'{org_name}-Bot'
+bot_url = 'https://app.lizardbyte.dev'
 
 # avatar
 avatar = get_bot_avatar(gravatar=os.environ['GRAVATAR_EMAIL'])
+
+response = requests.get(url=avatar)
+avatar_img = BytesIO(response.content).read()
 
 # context reference
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
@@ -133,15 +130,6 @@ try:
         guild_ids = json.load(fp=f)
 except FileNotFoundError:
     guild_ids = []
-
-# command : wiki-file
-command_file = 'commands.json'
-try:
-    with open(file=command_file, mode='r') as f:
-        command_dict = json.load(fp=f)
-except FileNotFoundError:
-    print(f'Error: {command_file} not found')
-    sys.exit(__status=1)
 
 
 @bot.event  # on ready
@@ -157,15 +145,18 @@ async def on_ready():
     print(f'Logged in as || name: {bot.user.name} || id: {bot.user.id}')
     print(f'Servers connected to: {bot.guilds}')
 
-    global guild_ids
     for guild in bot.guilds:
         print(guild.name)
-        guild_ids.append(guild.id)
+        if guild.id not in guild_ids:
+            guild_ids.append(guild.id)
     with open(file=guild_file, mode='w') as file:
         json.dump(obj=guild_ids, fp=file, indent=2)
 
+    # update the username and avatar
+    await bot.user.edit(username=bot_name, avatar=avatar_img)
+
     await bot.change_presence(
-        activity=discord.Activity(type=discord.ActivityType.watching, name="the RetroArcher server")
+        activity=discord.Activity(type=discord.ActivityType.watching, name=f"the {org_name} server")
     )
 
     try:
@@ -180,7 +171,7 @@ async def on_ready():
 
 
 @bot.slash_command(name="help",
-                   description="Get help with RetroArcher Bot",
+                   description=f"Get help with {bot_name}",
                    guild_ids=guild_ids,
                    )
 async def help_command(ctx):
@@ -189,28 +180,29 @@ async def help_command(ctx):
     :param ctx: request message context
     :return: embed
     """
-    description = """\
+    description = f"""\
     `/help` - Print this message.
     
-    `/donate <opt:user>` - See how to support RetroArcher.
+    `/docs <req:project> <opt:version> <opt:user>` - Return url to project docs.
+    `project` - The project to return docs for. Required.
+    `version` - The version of the docs to return. Optional.
+    `user` - The user to mention in the response. Optional.
+    
+    `/donate <opt:user>` - See how to support {org_name}.
     `user` - The user to mention in the response. Optional.
     
     `/random <opt:user>` - Return a random video game quote.
     `user` - The user to mention in the response. Optional.
-    
-    `/wiki <req:page> <opt:user>` - Return page from the RetroArcher wiki.
-    `page` - The page to return. Required.
-    `user` - The user to mention in the response. Optional.
     """
 
     embed = discord.Embed(description=description, color=0xE5A00D)
-    embed.set_footer(text='RetroArcher Bot', icon_url=avatar)
+    embed.set_footer(text=bot_name, icon_url=avatar)
 
     await ctx.respond(embed=embed)
 
 
 @bot.slash_command(name="donate",
-                   description="Support the development of RetroArcher",
+                   description=f"Support the development of {org_name}",
                    guild_ids=guild_ids,
                    )
 async def donate_command(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
@@ -225,7 +217,7 @@ async def donate_command(ctx, user: Option(discord.Member, description='Select t
     embeds.append(discord.Embed(color=0x333))
     embeds[-1].set_author(
         name='Github Sponsors',
-        url='https://github.com/sponsors/ReenigneArcher',
+        url=f'https://github.com/sponsors/{org_name}',
         icon_url='https://github.com/fluidicon.png'
     )
 
@@ -239,7 +231,7 @@ async def donate_command(ctx, user: Option(discord.Member, description='Select t
     embeds.append(discord.Embed(description='Includes Discord benefits.', color=0xf96854))
     embeds[-1].set_author(
         name='Patreon',
-        url='https://www.patreon.com/RetroArcher',
+        url=f'https://www.patreon.com/{org_name}',
         icon_url='https://c5.patreon.com/external/favicon/apple-touch-icon.png?v=jw6AR4Rg74'
     )
 
@@ -269,103 +261,112 @@ async def random_command(ctx, user: Option(discord.Member, description='Select t
     :param user: username to mention in response
     :return: embed
     """
-    quote_list = [
-        "@!#?@!",
-        "Ah shit, here we go again",
-        "All Your Base Are Belong To Us",
-        "Beyond the scope of Light, beyond the reach of Dark. What could possibly await us. And yet we seek it, insatiably.",
-        "Bury me with my money!",
-        "Did I ever tell you what the definition of insanity is?",
-        "Do a barrel roll!",
-        "Don't make a girl a promise... If you know you can't keep it.",
-        "Finish Him!",
-        "Get over here!",
-        "Hell, it's about time",
-        "Hello, my friend. Stay awhile and listen.",
-        "Hey! Listen!",
-        "I gotta believe!!",
-        "I need a weapon.",
-        "I used to be an adventurer like you. Then I took an arrow in the knee.",
-        "I want to restore this world, but I fear I can't do it alone. Perhaps you could give me a hand?",
-        "It is pitch black. You are likely to be eaten by a grue.",
-        "It’s dangerous to go alone, take this!",
-        "It’s easy to forget what a sin is in the middle of a battlefield.",
-        "It's time to kick ass and chew bubblegum... and I'm all outta gum.",
-        "No Gods or Kings, only Man",
-        "Nothing is true, everything is permitted.",
-        "Reticulating splines",
-        "Sir. Finishing this fight.",
-        "Stand by for Titanfall",
-        "The Cake Is a Lie",
-        "Thank you Mario! But our Princess is in another castle!",
-        "Thought I'd Try Shooting My Way Out—Mix Things Up A Little.",
-        "Wake me... when you need me.",
-        "War Never Changes",
-        "We all make choices, but in the end our choices make us.",
-        "We should start from the first floor, okay? And, Jill, here's a lock pick. It might be handy if you, the master of unlocking, take it with you.",
-        "Well, butter my biscuits!",
-        "Wololo",
-        "Would you kindly?",
-        "Yes sir, I need a weapon.",
-        "You've got a heart of gold. Don't let them take it from you.",
-        "You have died of dysentery.",
-        "You must construct additional pylons.",
-    ]
+    quotes = requests.get(url='https://app.lizardbyte.dev/uno/random-quotes/games.json').json()
 
-    quote = random.choice(seq=quote_list)
+    quote_index = random.choice(seq=quotes)
+    quote = quote_index['quote']
 
-    embed = discord.Embed(description=quote, color=0xE5A00D)
-    embed.set_footer(text='RetroArcher Bot', icon_url=avatar)
+    game = quote_index['game']
+    character = quote_index['character']
+
+    if game and character:
+        description = f'~{character} / {game}'
+    elif game:
+        description = f'{game}'
+    elif character:
+        description = f'~{character}'
+    else:
+        description = None
+
+    embed = discord.Embed(title=quote, description=description, color=0x00ff00)
+    embed.set_footer(text=bot_name, icon_url=avatar)
 
     if user:
         await ctx.respond(user.mention, embed=embed)
     else:
         await ctx.respond(embed=embed)
 
-# Combine all wiki pages into one slash command with options/choices
-# Wiki Command
-wiki_choices = []
-for key, value in command_dict.items():
-    wiki_choices.append(OptionChoice(name=key, value=key))
+
+# get projects list from readthedocs
+def get_readthedocs() -> list:
+    url_base = 'https://readthedocs.org'
+    url = f'{url_base}/api/v3/projects/'
+    headers = {'Authorization': f'token {READTHEDOCS_TOKEN}'}
+
+    results = []
+
+    while True:
+        res = requests.get(url, headers=headers)
+        data = res.json()
+
+        results.extend(data['results'])
+
+        if data['next']:
+            url = f"{url_base}{data['next']}"
+        else:
+            break
+
+    return results
 
 
-@bot.slash_command(name="wiki",
-                   description="Return any of the listed Wiki pages as a message.",
+def get_readthedocs_names() -> list:
+    names = []
+
+    projects = get_readthedocs()
+    for project in projects:
+        names.append(project['name'])
+
+    return names
+
+
+@bot.slash_command(name="docs",
+                   description="Return docs for any project.",
                    guild_ids=guild_ids,
                    )
-async def wiki_command(ctx,
-                       page: Option(str,
-                                    description='Select the wiki page',
-                                    choices=wiki_choices,
-                                    required=True
-                                    ),
+async def docs_command(ctx,
+                       project: Option(str,
+                                       description='Select the project',
+                                       choices=get_readthedocs_names(),
+                                       required=True
+                                       ),
+                       version: Option(str,
+                                       description='Documentation for which version',
+                                       choices=['latest', 'nightly'],
+                                       required=False
+                                       ) = 'latest',
                        user: Option(discord.Member,
                                     description='Select the user to mention'
                                     ) = None
                        ):
     """
-    Send an embed with a wiki text to the server and channel where the command was issued.
+    Send an embed with a project documentation.
     :param ctx: request message context
-    :param page: wiki page to return in response
+    :param project: the project
+    :param version: the version of the documentation
     :param user: username to mention in response
     :return: embed
     """
-    v = command_dict[page]
+    readthedocs = get_readthedocs()
+    project_url = None
+    for docs in readthedocs:
+        if project == docs['name']:
+            project_url = docs['urls']['documentation']
+            break
 
-    git_user = 'RetroArcher'
-    git_repo = 'RetroArcher.bundle'
-    wiki_file = parse.quote(v)
-    title = v.replace('-', ' ').replace('_', ' ').strip()
-    color = 0xE5A00D
+    if project_url:
+        project_url = project_url.replace('/en/latest/', f'/en/{version}/')
 
-    url, embed_message, color = discord_message(git_user=git_user, git_repo=git_repo, wiki_file=wiki_file, color=color)
-    embed = discord.Embed(title=title, url=url, description=embed_message, color=color)
-    embed.set_footer(text='RetroArcher Bot', icon_url=avatar)
+        description = f"""\
+        Here is the `{version}` documentation for `{project}`.
+        """
 
-    if user:
-        await ctx.respond(user.mention, embed=embed)
-    else:
-        await ctx.respond(embed=embed)
+        embed = discord.Embed(title=project_url, url=project_url, description=description, color=0x00ff00)
+        embed.set_footer(text=bot_name, icon_url=avatar)
+
+        if user:
+            await ctx.respond(user.mention, embed=embed)
+        else:
+            await ctx.respond(embed=embed)
 
 
 @tasks.loop(minutes=60.0)
