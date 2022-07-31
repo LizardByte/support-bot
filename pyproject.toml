@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "retroarcherdiscord-bot"
+name = "lizardbyte-discord-bot"
 version = "0.1.0"
-description = "Bot for RetroArcher discord server"
+description = "Bot for LizardByte discord server"
 authors = ["ReenigneArcher"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-py-cord = "2.0.0b3"
+py-cord = "2.0.0"
 Flask = "2.1.3"
 igdb-api-v4 = "0.0.5"
 python-dotenv = "0.20.0"
