@@ -51,6 +51,7 @@ services:
       - GRAVATAR_EMAIL=<GRAVATAR_EMAIL>
       - IGDB_CLIENT_ID=<IGDB_CLIENT_ID>
       - IGDB_CLIENT_SECRET=<IGDB_CLIENT_SECRET>
+      - READTHEDOCS_TOKEN=<READTHEDOCS_TOKEN>
 ```
 
 Create and start the container (run the command from the same folder as your `docker-compose.yml` file):
@@ -71,7 +72,7 @@ docker-compose up -d
 You must substitute the `<values>` with your own settings.
 
 | Parameter            | Required | Default | Description                                                   |
-| -------------------- | -------- | ------- | ------------------------------------------------------------- |
+|----------------------|----------|---------|---------------------------------------------------------------|
 | BOT_TOKEN            | True     | None    | Token from Bot page on discord developer portal.              |
 | DAILY_TASKS          | False    | true    | Daily tasks on or off.                                        |
 | DAILY_RELEASES       | False    | true    | Send a message for each game released on this day in history. |
@@ -80,3 +81,4 @@ You must substitute the `<values>` with your own settings.
 | GRAVATAR_EMAIL       | False    | None    | Gravatar email address for bot avatar.                        |
 | IGDB_CLIENT_ID       | False    | None    | Required if daily_releases is enabled.                        |
 | IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
+| READTHEDOCS_TOKEN    | False    | None    | Required for `docs` slash command.                            |
