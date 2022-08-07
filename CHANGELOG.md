@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0] - 2022-08-07
+### Changed
+- Select Menus added to `docs` slash command to give finer control of returned documentation url
+- Buttons added to `donate` slash command, removed embeds
+### Removed
+- Removed guild file
+### Dependencies
+- Bump flask from 2.1.3 to 2.2.1
+
 ## [0.0.5] - 2022-07-31
 ### Fixed
 - Bot will now self updates username and avatar
