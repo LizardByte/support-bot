@@ -4,13 +4,14 @@ from io import BytesIO
 import json
 import os
 import random
-import sys
-from urllib import parse
+from typing import Union
 
 # lib imports
+from bs4 import BeautifulSoup
 import discord
-from discord.commands import Option, OptionChoice
+from discord.commands import Option
 from discord.ext import tasks
+from discord.ui.select import Select
 from igdb.wrapper import IGDBWrapper
 from libgravatar import Gravatar
 import requests
@@ -21,9 +22,6 @@ import keep_alive
 # development imports
 from dotenv import load_dotenv
 load_dotenv(override=False)  # environment secrets take priority over .env file
-
-# env variables
-READTHEDOCS_TOKEN = os.environ['READTHEDOCS_TOKEN']
 
 # convert month number to igdb human-readable month
 month_dictionary = {
@@ -43,10 +41,20 @@ month_dictionary = {
 
 
 def get_bot_avatar(gravatar: str) -> str:
-    """Return the gravatar of a given email.
+    """
+    Get Gravatar image url.
 
-    :param gravatar: the gravatar email
-    :return: url to image
+    Return the Gravatar image url of the given email address.
+
+    Parameters
+    ----------
+    gravatar : str
+        The Gravatar email address.
+
+    Returns
+    -------
+    str
+        Gravatar image url.
     """
 
     g = Gravatar(email=gravatar)
@@ -55,38 +63,32 @@ def get_bot_avatar(gravatar: str) -> str:
     return image_url
 
 
-def discord_message(git_user: str, git_repo: str, wiki_file: str, color: int):
-    """Return the elements of a the discord message from the given parameters.
-
-    :param git_user: Github username
-    :param git_repo: Github repo name
-    :param wiki_file: Wiki page filename
-    :param color: hex color code
-    :return: url, embed message, color
-    """
-    url = f'https://github.com/{git_user}/{git_repo}/wiki/{wiki_file}'
-    embed_message = convert_wiki(git_user=git_user, git_repo=git_repo, wiki_file=wiki_file)
-    if len(embed_message) > 2048:
-        see_more = f'...\n\n...See More on [Github]({url})'
-        embed_message = f'{embed_message[:2048 - len(see_more)]}{see_more}'
-    return url, embed_message, color
-
-
 def igdb_authorization(client_id: str, client_secret: str) -> dict:
-    """Return an authorization dictionary for the IGDB api.
+    """
+    Authorization for IGDB.
 
-    :param client_id: IGDB client id
-    :param client_secret: IGDB client secret
-    :return: authorization dictionary
+    Return an authorization dictionary for the IGDB api.
+
+    Parameters
+    ----------
+    client_id : str
+        IGDB/Twitch API client id.
+    client_secret : str
+        IGDB/Twitch client secret.
+
+    Returns
+    -------
+    dict
+        Authorization dictionary.
     """
     grant_type = 'client_credentials'
 
     auth_headers = {
-                'Accept': 'application/json',
-                'client_id': client_id,
-                'client_secret': client_secret,
-                'grant_type': grant_type
-            }
+        'Accept': 'application/json',
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'grant_type': grant_type
+    }
 
     token_url = 'https://id.twitch.tv/oauth2/token'
 
@@ -94,13 +96,45 @@ def igdb_authorization(client_id: str, client_secret: str) -> dict:
     return authorization
 
 
-def post_json(url: str, headers: dict) -> dict:
+def get_json(url: str) -> Union[dict, list]:
     """
-    Make a post request in json format to the given URL using the given headers.
+    Make a GET request and get the response in json.
 
-    :param url: URL for post request
-    :param headers: Headers for post request
-    :return: result
+    Makes a GET request to the given url.
+
+    Parameters
+    ----------
+    url : str
+        The url for the GET request.
+
+    Returns
+    -------
+    any
+        The json response.
+    """
+    res = requests.get(url=url)
+    data = res.json()
+
+    return data
+
+
+def post_json(url: str, headers: dict) -> Union[dict, list]:
+    """
+    Make a POST request and get response in json.
+
+    Makes a POST request with given headers to the given url.
+
+    Parameters
+    ----------
+    url : str
+        The url for the POST request.
+    headers : dict
+        Headers for the POST request.
+
+    Returns
+    -------
+    any
+        The json response.
     """
     result = requests.post(url=url, data=headers).json()
     return result
@@ -122,6 +156,7 @@ avatar_img = BytesIO(response.content).read()
 
 # context reference
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
+# https://docs.pycord.dev/en/master/ext/commands/api.html#discord.ext.commands.Context
 
 # get list of guild ids from file
 guild_file = 'guilds.json'
@@ -135,11 +170,10 @@ except FileNotFoundError:
 @bot.event  # on ready
 async def on_ready():
     """
-    On Ready event.
+    Bot on ready event.
 
-    - Update guild_file with guild ids
-    - Change the bot presence
-    - Start daily tasks
+    This function runs when the discord bot is ready. The function will update the ``guilds.json`` file, update the bot
+    present, update the username and avatar, and start daily tasks.
     """
     print(f'py-cord version: {discord.__version__}')
     print(f'Logged in as || name: {bot.user.name} || id: {bot.user.id}')
@@ -174,18 +208,21 @@ async def on_ready():
                    description=f"Get help with {bot_name}",
                    guild_ids=guild_ids,
                    )
-async def help_command(ctx):
+async def help_command(ctx: discord.ApplicationContext):
     """
-    Send an embed with help information to the server and channel where the command was issued.
-    :param ctx: request message context
-    :return: embed
+    The ``help`` slash command.
+
+    Send a discord embed, with help information, to the server and channel where the command was issued.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
     """
     description = f"""\
     `/help` - Print this message.
     
-    `/docs <req:project> <opt:version> <opt:user>` - Return url to project docs.
-    `project` - The project to return docs for. Required.
-    `version` - The version of the docs to return. Optional.
+    `/docs <opt:user>` - Return url to project docs based on follow up questions.
     `user` - The user to mention in the response. Optional.
     
     `/donate <opt:user>` - See how to support {org_name}.
@@ -205,12 +242,23 @@ async def help_command(ctx):
                    description=f"Support the development of {org_name}",
                    guild_ids=guild_ids,
                    )
-async def donate_command(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
+async def donate_command(ctx: discord.ApplicationContext,
+                         user: Option(
+                             input_type=discord.Member,
+                             description='Select the user to mention') = None
+                         ):
     """
-    Sends embeds with donate information to the server and channel where the command was issued.
-    :param ctx: request message context
-    :param user: username to mention in response
-    :return: embeds
+    The ``donate`` slash command.
+
+    Sends a discord embed, with information on how to donate to the project, to the server and channel where the
+    command was issued.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
+    user : discord.Commands.Option
+        Username to mention in response.
     """
     embeds = []
 
@@ -254,12 +302,22 @@ async def donate_command(ctx, user: Option(discord.Member, description='Select t
                    description="Random video game quote",
                    guild_ids=guild_ids,
                    )
-async def random_command(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
+async def random_command(ctx: discord.ApplicationContext,
+                         user: Option(
+                             input_type=discord.Member,
+                             description='Select the user to mention') = None
+                         ):
     """
-    Send an embed with a random quote to the server and channel where the command was issued.
-    :param ctx: request message context
-    :param user: username to mention in response
-    :return: embed
+    The ``random`` slash command.
+
+    Sends a discord embed, with a random video game quote, to the server and channel where the command was issued.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
+    user : discord.Commands.Option
+        Username to mention in response.
     """
     quotes = requests.get(url='https://app.lizardbyte.dev/uno/random-quotes/games.json').json()
 
@@ -287,94 +345,405 @@ async def random_command(ctx, user: Option(discord.Member, description='Select t
         await ctx.respond(embed=embed)
 
 
-# get projects list from readthedocs
-def get_readthedocs() -> list:
-    url_base = 'https://readthedocs.org'
-    url = f'{url_base}/api/v3/projects/'
-    headers = {'Authorization': f'token {READTHEDOCS_TOKEN}'}
+class DocsCommandDefaultProjects(object):
+    """
+    Class representing default projects for ``docs`` slash command.
 
-    results = []
+    Attributes
+    ----------
+    self.projects : Union[dict, list]
+        The json representation of our readthedocs projects.
+    self.project_options : list
+        A list of `discord.SelectOption` objects.
+    """
+    def __init__(self):
+        self.projects = get_json(url='https://app.lizardbyte.dev/uno/readthedocs/projects.json')
+        self.projects_options = []
+        for project in self.projects:
+            try:
+                parent_project = project['subproject_of']['name']
+            except (KeyError, TypeError):
+                parent_project = None
 
-    while True:
-        res = requests.get(url, headers=headers)
-        data = res.json()
+            self.projects_options.append(
+                discord.SelectOption(label=project['name'],
+                                     value=project['repository']['url'].rsplit('/', 1)[-1].rsplit('.git', 1)[0],
+                                     description=f"Subproject of {parent_project}" if parent_project else None)
+            )
 
-        results.extend(data['results'])
 
-        if data['next']:
-            url = f"{url_base}{data['next']}"
+class DocsCommandView(discord.ui.View):
+    """
+    Class representing `discord.ui.View` for ``docs`` slash command.
+
+    Attributes
+    ----------
+    self.ctx : discord.ApplicationContext
+        Request message context.
+    self.docs_project : str
+        The project name.
+    self.docs_version : str
+        The url to the documentation of the selected version.
+    self.docs_category : str
+        The name of the selected category.
+    self.docs_page : str
+        The name of the selected page.
+    self.docs_section : str
+        The name of the selected section.
+    self.html : bytes
+        Content of `requests.get()` in bytes.
+    self.soup : bs4.BeautifulSoup
+        BeautifulSoup object of `self.html`
+    self.toc : ResultSet
+        Docs table of contents.
+    self.categories : list
+        A list of Docs categories.
+    self.pages : list
+        A list of pages for the selected category.
+    self.sections : list
+        A list of sections for the selected page.
+    """
+    def __init__(self, ctx: discord.ApplicationContext):
+        super().__init__(timeout=60)
+
+        self.ctx = ctx
+
+        # final values
+        self.docs_project = None
+        self.docs_version = None
+        self.docs_category = None
+        self.docs_page = None
+        self.docs_section = None
+
+        # intermediate values
+        self.html = None
+        self.soup = None
+        self.toc = None
+        self.categories = None
+        self.pages = None
+        self.sections = None
+
+    # timeout is not working, see: https://github.com/Pycord-Development/pycord/issues/1549
+    # async def on_timeout(self):
+    #     """
+    #     Timeout callback.
+    #
+    #     Disable children items, and edit the original message.
+    #     """
+    #     for child in self.children:
+    #         child.disabled = True
+    #
+    #     embed = discord.Embed(title="...", color=0xDC143C)
+    #     embed.set_footer(text=bot_name, icon_url=avatar)
+    #     await self.message.edit(embed=embed, view=self)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """
+        Check the interaction.
+
+        Ensure the user interacting with the interaction is the user that initiated it.
+
+        Parameters
+        ----------
+        interaction : discord.Interaction
+
+        Returns
+        -------
+        bool
+            If interaction user is the author or bot owner return ``True``, otherwise ``False``.
+        """
+        if interaction.user and interaction.user.id in (self.ctx.bot.owner_id, self.ctx.author.id):
+            return True
         else:
-            break
+            await interaction.response.send_message('This pagination menu cannot be controlled by you, sorry!',
+                                                    ephemeral=True)
+            return False
 
-    return results
+    async def callback(self, select: Select, interaction: discord.Interaction):
+        """
+        Callback for select menus of `docs` command.
 
+        Updates Select Menus depending on currently selected values. Updates embed message when requirements are met.
 
-def get_readthedocs_names() -> list:
-    names = []
+        Parameters
+        ----------
+        select : discord.ui.select.Select
+            The `Select` object interacted with.
+        interaction : discord.Interaction
+            The original discord interaction object.
+        """
+        select_index = None
+        index = 0
+        for child in self.children:
+            if child == select:
+                select_index = index  # this is the current child... user interacted with this child
 
-    projects = get_readthedocs()
-    for project in projects:
-        names.append(project['name'])
+            # disable dependent drop downs
+            if select_index is not None:
+                if index - select_index - 1 <= 0:  # add 1 to select index to always allow subtracting
+                    child.disabled = False
+                else:
+                    child.disabled = True
+                    child.options = [discord.SelectOption(label='error')]
 
-    return names
+                if index - select_index == 1:  # this is the next child
+                    child.options = [discord.SelectOption(label='0')]
+
+                    if child == self.children[1]:  # choose docs version
+                        readthedocs = self.children[0].values[0]
+
+                        versions = get_json(
+                            url=f'https://app.lizardbyte.dev/uno/readthedocs/versions/{readthedocs}.json')
+
+                        options = []
+                        for version in versions:
+                            if version['active'] and version['built']:
+                                options.append(discord.SelectOption(
+                                    label=version['slug'],
+                                    value=version['urls']['documentation'],
+                                    description=f"Docs for {version['slug']} {version['type']}"
+                                ))
+
+                        child.options = options
+
+                    if child == self.children[2]:  # choose the docs category
+                        url = self.children[1].values[0]
+
+                        self.html = requests.get(url=url).content
+                        self.soup = BeautifulSoup(self.html, 'html.parser')
+
+                        self.toc = self.soup.select("div[class*=toctree-wrapper]")
+
+                        self.categories = []
+                        for item in self.toc:
+                            self.categories.extend(item.select("p[role=heading]"))
+
+                        options = [discord.SelectOption(label='None')]
+                        for category in self.categories:
+
+                            options.append(discord.SelectOption(
+                                label=category.string
+                            ))
+
+                        child.options = options
+
+                    if child == self.children[3]:  # choose the docs page
+                        category_value = self.children[2].values[0]
+
+                        for category in self.categories:
+                            if category.string == category_value:
+                                category_section = self.toc[self.categories.index(category)]
+
+                                page_sections = category_section.findChild('ul')
+                                self.sections = page_sections.find_all('li', class_="toctree-l1")
+
+                                break
+
+                        options = []
+                        self.pages = []
+                        if category_value == 'None':
+                            options.append(discord.SelectOption(label='None', value=category_value, default=True))
+
+                            # enable the final menu
+                            self.children[-1].disabled = False
+                            self.children[-1].options = options
+                        else:
+                            for section in self.sections:
+                                page = section.findNext('a')
+                                self.pages.append(page)
+
+                                options.append(discord.SelectOption(
+                                    label=page.string,
+                                    value=page['href']
+                                ))
+
+                        child.options = options
+
+                        if category_value == 'None':
+                            break
+
+                    if child == self.children[4]:  # choose the docs page section
+                        page_value = self.children[3].values[0]
+
+                        if page_value == 'None':
+                            options = [discord.SelectOption(label='None', value=page_value, default=True)]
+                        else:
+                            options = [discord.SelectOption(label='None', value=page_value)]
+                            for section in self.sections:
+                                page = section.findNext('a')
+                                if page_value == page['href']:
+                                    page_sections = section.find_all('a')
+                                    del page_sections[0]  # delete first item from list
+
+                                    for page_section in page_sections:
+                                        options.append(discord.SelectOption(
+                                            label=page_section.string,
+                                            value=page_section['href']
+                                        ))
+
+                        child.options = options
+
+            index += 1
+
+        # set the currently selected value to the default item
+        for option in select.options:
+            if option.value == select.values[0]:
+                option.default = True
+            else:
+                option.default = False
+
+        # reset values
+        try:
+            self.docs_project = self.children[0].values[0]
+            self.docs_version = self.children[1].values[0]
+
+            if self.children[2].values[0] == 'None':
+                self.docs_category = ''
+                self.docs_page = ''
+                self.docs_section = ''
+            else:
+                self.docs_category = self.children[2].values[0]
+                self.docs_page = self.children[3].values[0] if self.children[3].values[0] != 'None' else ''
+                self.docs_section = self.children[4].values[0] if self.children[4].values[0] != 'None' else ''
+        except IndexError:
+            pass
+        if select == self.children[0]:  # chose the docs project
+            self.docs_version = None
+            self.docs_category = None
+            self.docs_page = None
+            self.docs_section = None
+        elif select == self.children[1]:  # chose the docs version
+            self.docs_category = None
+            self.docs_page = None
+            self.docs_section = None
+        elif select == self.children[2]:  # chose the docs category
+            self.docs_page = None
+            self.docs_section = None
+        elif select == self.children[3]:  # chose the docs page
+            self.docs_section = None
+
+        # get the original embed
+        embed = interaction.message.embeds[0]  # we know there is only 1 embed
+
+        if self.docs_project and self.docs_version:  # the project and version are selected
+            url = f'{self.docs_version}{self.docs_section}'
+
+            if self.docs_category is not None:  # category has a value, which may be ""
+                if self.docs_category:  # category is selected, so the next item must not be blank
+                    if self.docs_page is not None and self.docs_section is not None:  # info is complete
+                        embed.title = f'{self.docs_project} | {self.docs_category}'
+                        embed.description = f'The selected docs are available at {url}'
+                        embed.color = 0x39FF14  # PyCharm complains that the color is read only, but this works anyway
+                        embed.url = url
+
+                        await interaction.response.edit_message(embed=embed, view=self)
+                        return
+                else:  # info is complete IF category is ""
+                    embed.title = f'{self.docs_project} | {self.docs_category}'
+                    embed.description = f'The selected docs are available at {url}'
+                    embed.color = 0x39FF14  # PyCharm complains that the color is read only, but this works anyway
+                    embed.url = url
+
+                    await interaction.response.edit_message(embed=embed, view=self)
+                    return
+
+        # info is not complete
+        embed.title = "Select the remaining values"
+        embed.description = None
+        embed.color = 0xDC143C
+        embed.url = None
+
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.select(
+        placeholder="Choose docs...",
+        disabled=False,
+        min_values=1,
+        max_values=1,
+        options=DocsCommandDefaultProjects().projects_options
+    )
+    async def slug_callback(self, select: Select, interaction: discord.Interaction):
+        await self.callback(select, interaction)
+
+    @discord.ui.select(
+        placeholder="Choose version...",
+        disabled=True,
+        min_values=1,
+        max_values=1,
+        options=[discord.SelectOption(label='error')]
+    )
+    async def version_callback(self, select: Select, interaction: discord.Interaction):
+        await self.callback(select=select, interaction=interaction)
+
+    @discord.ui.select(
+        placeholder="Choose category...",
+        disabled=True,
+        min_values=1,
+        max_values=1,
+        options=[discord.SelectOption(label='error')]
+    )
+    async def category_callback(self, select: Select, interaction: discord.Interaction):
+        await self.callback(select=select, interaction=interaction)
+
+    @discord.ui.select(
+        placeholder="Choose page...",
+        disabled=True,
+        min_values=1,
+        max_values=1,
+        options=[discord.SelectOption(label='error')]
+    )
+    async def page_callback(self, select: Select, interaction: discord.Interaction):
+        await self.callback(select=select, interaction=interaction)
+
+    @discord.ui.select(
+        placeholder="Choose section...",
+        disabled=True,
+        min_values=1,
+        max_values=1,
+        options=[discord.SelectOption(label='error')]
+    )
+    async def section_callback(self, select: Select, interaction: discord.Interaction):
+        await self.callback(select=select, interaction=interaction)
 
 
 @bot.slash_command(name="docs",
                    description="Return docs for any project.",
                    guild_ids=guild_ids,
                    )
-async def docs_command(ctx,
-                       project: Option(str,
-                                       description='Select the project',
-                                       choices=get_readthedocs_names(),
-                                       required=True
-                                       ),
-                       version: Option(str,
-                                       description='Documentation for which version',
-                                       choices=['latest', 'nightly'],
-                                       required=False
-                                       ) = 'latest',
+async def docs_command(ctx: discord.ApplicationContext,
                        user: Option(discord.Member,
                                     description='Select the user to mention'
                                     ) = None
                        ):
     """
-    Send an embed with a project documentation.
-    :param ctx: request message context
-    :param project: the project
-    :param version: the version of the documentation
-    :param user: username to mention in response
-    :return: embed
+    The ``docs`` slash command.
+
+    Sends a discord embed, with `Select Menus` allowing the user to select the specific documentation,
+    to the server and channel where the command was issued.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
+    user : discord.Commands.Option
+        Username to mention in response.
     """
-    readthedocs = get_readthedocs()
-    project_url = None
-    for docs in readthedocs:
-        if project == docs['name']:
-            project_url = docs['urls']['documentation']
-            break
+    embed = discord.Embed(title="Select a project", color=0xDC143C)
+    embed.set_footer(text=bot_name, icon_url=avatar)
 
-    if project_url:
-        project_url = project_url.replace('/en/latest/', f'/en/{version}/')
-
-        description = f"""\
-        Here is the `{version}` documentation for `{project}`.
-        """
-
-        embed = discord.Embed(title=project_url, url=project_url, description=description, color=0x00ff00)
-        embed.set_footer(text=bot_name, icon_url=avatar)
-
-        if user:
-            await ctx.respond(user.mention, embed=embed)
-        else:
-            await ctx.respond(embed=embed)
+    if user:
+        await ctx.respond(f'{ctx.author.mention}, {user.mention}', embed=embed, view=DocsCommandView(ctx=ctx))
+    else:
+        await ctx.respond(f'{ctx.author.mention}', embed=embed, view=DocsCommandView(ctx=ctx))
 
 
 @tasks.loop(minutes=60.0)
 async def daily_task():
     """
-    Functions to run on a schedule.
+    Run daily task loop.
 
-    - Create an embed and thread for each game released on this day in history, if enabled.
+    This function runs on a schedule, every 60 minutes. Create an embed and thread for each game released
+    on this day in history (according to IGDB), if enabled.
     """
     if datetime.utcnow().hour == int(os.getenv(key='daily_tasks_utc_hour', default=12)):
         daily_releases = False
@@ -399,10 +768,22 @@ async def daily_task():
                 wrapper = IGDBWrapper(client_id=os.environ['IGDB_CLIENT_ID'], auth_token=igdb_auth['access_token'])
 
                 end_point = 'release_dates'
-                fields = 'human, game.name, game.summary, game.url, game.genres.name, game.rating, game.cover.url, game.artworks.url, game.platforms.name, game.platforms.url'
+                fields = [
+                    'human',
+                    'game.name',
+                    'game.summary',
+                    'game.url',
+                    'game.genres.name',
+                    'game.rating',
+                    'game.cover.url',
+                    'game.artworks.url',
+                    'game.platforms.name',
+                    'game.platforms.url'
+                ]
+
                 where = f'human="{month_dictionary[datetime.utcnow().month]} {datetime.utcnow().day:02d}"*'
                 limit = 500
-                query = f'fields {fields}; where {where}; limit {limit};'
+                query = f'fields {", ".join(fields)}; where {where}; limit {limit};'
 
                 byte_array = bytes(wrapper.api_request(endpoint=end_point, query=query))
                 json_result = json.loads(byte_array)
@@ -427,7 +808,7 @@ async def daily_task():
                         embed = discord.Embed(
                             title=game['game']['name'],
                             url=game['game']['url'],
-                            description=game['game']['summary'][0:2000-1],
+                            description=game['game']['summary'][0:2000 - 1],
                             color=color
                         )
                     except KeyError:

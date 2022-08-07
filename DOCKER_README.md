@@ -51,7 +51,6 @@ services:
       - GRAVATAR_EMAIL=<GRAVATAR_EMAIL>
       - IGDB_CLIENT_ID=<IGDB_CLIENT_ID>
       - IGDB_CLIENT_SECRET=<IGDB_CLIENT_SECRET>
-      - READTHEDOCS_TOKEN=<READTHEDOCS_TOKEN>
 ```
 
 Create and start the container (run the command from the same folder as your `docker-compose.yml` file):
@@ -81,4 +80,3 @@ You must substitute the `<values>` with your own settings.
 | GRAVATAR_EMAIL       | False    | None    | Gravatar email address for bot avatar.                        |
 | IGDB_CLIENT_ID       | False    | None    | Required if daily_releases is enabled.                        |
 | IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
-| READTHEDOCS_TOKEN    | False    | None    | Required for `docs` slash command.                            |
