@@ -40,33 +40,18 @@ avatar_img = BytesIO(response.content).read()
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
 # https://docs.pycord.dev/en/master/ext/commands/api.html#discord.ext.commands.Context
 
-# get list of guild ids from file
-guild_file = 'guilds.json'
-try:
-    with open(file=guild_file, mode='r') as f:
-        guild_ids = json.load(fp=f)
-except FileNotFoundError:
-    guild_ids = []
-
 
 @bot.event  # on ready
 async def on_ready():
     """
     Bot on ready event.
 
-    This function runs when the discord bot is ready. The function will update the ``guilds.json`` file, update the bot
-    present, update the username and avatar, and start daily tasks.
+    This function runs when the discord bot is ready. The function will update the bot presence, update the username
+    and avatar, and start daily tasks.
     """
     print(f'py-cord version: {discord.__version__}')
     print(f'Logged in as || name: {bot.user.name} || id: {bot.user.id}')
     print(f'Servers connected to: {bot.guilds}')
-
-    for guild in bot.guilds:
-        print(guild.name)
-        if guild.id not in guild_ids:
-            guild_ids.append(guild.id)
-    with open(file=guild_file, mode='w') as file:
-        json.dump(obj=guild_ids, fp=file, indent=2)
 
     # update the username and avatar
     await bot.user.edit(username=bot_name, avatar=avatar_img)
@@ -90,7 +75,6 @@ async def on_ready():
 
 @bot.slash_command(name="help",
                    description=f"Get help with {bot_name}",
-                   guild_ids=guild_ids,
                    )
 async def help_command(ctx: discord.ApplicationContext):
     """
@@ -124,7 +108,6 @@ async def help_command(ctx: discord.ApplicationContext):
 
 @bot.slash_command(name="donate",
                    description=f"Support the development of {org_name}",
-                   guild_ids=guild_ids,
                    )
 async def donate_command(ctx: discord.ApplicationContext,
                          user: Option(
@@ -152,7 +135,6 @@ async def donate_command(ctx: discord.ApplicationContext,
 
 @bot.slash_command(name="random",
                    description="Random video game quote",
-                   guild_ids=guild_ids,
                    )
 async def random_command(ctx: discord.ApplicationContext,
                          user: Option(
@@ -199,7 +181,6 @@ async def random_command(ctx: discord.ApplicationContext,
 
 @bot.slash_command(name="docs",
                    description="Return docs for any project.",
-                   guild_ids=guild_ids,
                    )
 async def docs_command(ctx: discord.ApplicationContext,
                        user: Option(discord.Member,
