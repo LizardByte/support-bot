@@ -5,12 +5,12 @@ Discord bot written in python to help manage the LizardByte discord server.
 ## Overview
 This is a custom discord bot with some slash commands to help with support on the LizardByte discord server.
 
-| command | argument 1 | argument 2 | argument 3 | description                      |
-|---------|------------|------------|------------|----------------------------------|
-| /help   |            |            |            | Return help message              |
-| /docs   | project    | version    | user       | Return the specified wiki page   |
-| /donate | user       |            |            | Return donation links            |
-| /random |            |            |            | Return a random video game quote |
+| command | argument 1 | description                      |
+|---------|------------|----------------------------------|
+| /help   |            | Return help message              |
+| /docs   | user       | Return the specified docs page   |
+| /donate | user       | Return donation links            |
+| /random |            | Return a random video game quote |
 
 
 ## Instructions
@@ -33,7 +33,6 @@ This is a custom discord bot with some slash commands to help with support on th
 | GRAVATAR_EMAIL       | False    | None    | Gravatar email address for bot avatar.                        |
 | IGDB_CLIENT_ID       | False    | None    | Required if daily_releases is enabled.                        |
 | IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
-| READTHEDOCS_TOKEN    | False    | None    | Required for docs slash command.                              |
 
 * Running bot:
   * `python discord_bot.py`

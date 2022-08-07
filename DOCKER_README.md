@@ -71,7 +71,7 @@ docker-compose up -d
 You must substitute the `<values>` with your own settings.
 
 | Parameter            | Required | Default | Description                                                   |
-| -------------------- | -------- | ------- | ------------------------------------------------------------- |
+|----------------------|----------|---------|---------------------------------------------------------------|
 | BOT_TOKEN            | True     | None    | Token from Bot page on discord developer portal.              |
 | DAILY_TASKS          | False    | true    | Daily tasks on or off.                                        |
 | DAILY_RELEASES       | False    | true    | Send a message for each game released on this day in history. |

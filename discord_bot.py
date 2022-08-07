@@ -4,106 +4,22 @@ from io import BytesIO
 import json
 import os
 import random
-import sys
-from urllib import parse
 
 # lib imports
 import discord
-from discord.commands import Option, OptionChoice
+from discord.commands import Option
 from discord.ext import tasks
 from igdb.wrapper import IGDBWrapper
-from libgravatar import Gravatar
 import requests
 
 # local imports
+from discord_helpers import get_bot_avatar, igdb_authorization, month_dictionary
+from discord_views import DocsCommandView, DonateCommandView
 import keep_alive
 
 # development imports
 from dotenv import load_dotenv
 load_dotenv(override=False)  # environment secrets take priority over .env file
-
-# env variables
-READTHEDOCS_TOKEN = os.environ['READTHEDOCS_TOKEN']
-
-# convert month number to igdb human-readable month
-month_dictionary = {
-    1: 'Jan',
-    2: 'Feb',
-    3: 'Mar',
-    4: 'Apr',
-    5: 'May',
-    6: 'Jun',
-    7: 'Jul',
-    8: 'Aug',
-    9: 'Sep',
-    10: 'Oct',
-    11: 'Nov',
-    12: 'Dec'
-}
-
-
-def get_bot_avatar(gravatar: str) -> str:
-    """Return the gravatar of a given email.
-
-    :param gravatar: the gravatar email
-    :return: url to image
-    """
-
-    g = Gravatar(email=gravatar)
-    image_url = g.get_image()
-
-    return image_url
-
-
-def discord_message(git_user: str, git_repo: str, wiki_file: str, color: int):
-    """Return the elements of a the discord message from the given parameters.
-
-    :param git_user: Github username
-    :param git_repo: Github repo name
-    :param wiki_file: Wiki page filename
-    :param color: hex color code
-    :return: url, embed message, color
-    """
-    url = f'https://github.com/{git_user}/{git_repo}/wiki/{wiki_file}'
-    embed_message = convert_wiki(git_user=git_user, git_repo=git_repo, wiki_file=wiki_file)
-    if len(embed_message) > 2048:
-        see_more = f'...\n\n...See More on [Github]({url})'
-        embed_message = f'{embed_message[:2048 - len(see_more)]}{see_more}'
-    return url, embed_message, color
-
-
-def igdb_authorization(client_id: str, client_secret: str) -> dict:
-    """Return an authorization dictionary for the IGDB api.
-
-    :param client_id: IGDB client id
-    :param client_secret: IGDB client secret
-    :return: authorization dictionary
-    """
-    grant_type = 'client_credentials'
-
-    auth_headers = {
-                'Accept': 'application/json',
-                'client_id': client_id,
-                'client_secret': client_secret,
-                'grant_type': grant_type
-            }
-
-    token_url = 'https://id.twitch.tv/oauth2/token'
-
-    authorization = post_json(url=token_url, headers=auth_headers)
-    return authorization
-
-
-def post_json(url: str, headers: dict) -> dict:
-    """
-    Make a post request in json format to the given URL using the given headers.
-
-    :param url: URL for post request
-    :param headers: Headers for post request
-    :return: result
-    """
-    result = requests.post(url=url, data=headers).json()
-    return result
 
 
 # constants
@@ -113,6 +29,7 @@ bot = discord.Bot(intents=discord.Intents.all(), auto_sync_commands=True)
 org_name = 'LizardByte'
 bot_name = f'{org_name}-Bot'
 bot_url = 'https://app.lizardbyte.dev'
+user_mention_desc = 'Select the user to mention'
 
 # avatar
 avatar = get_bot_avatar(gravatar=os.environ['GRAVATAR_EMAIL'])
@@ -122,35 +39,20 @@ avatar_img = BytesIO(response.content).read()
 
 # context reference
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
-
-# get list of guild ids from file
-guild_file = 'guilds.json'
-try:
-    with open(file=guild_file, mode='r') as f:
-        guild_ids = json.load(fp=f)
-except FileNotFoundError:
-    guild_ids = []
+# https://docs.pycord.dev/en/master/ext/commands/api.html#discord.ext.commands.Context
 
 
 @bot.event  # on ready
 async def on_ready():
     """
-    On Ready event.
+    Bot on ready event.
 
-    - Update guild_file with guild ids
-    - Change the bot presence
-    - Start daily tasks
+    This function runs when the discord bot is ready. The function will update the bot presence, update the username
+    and avatar, and start daily tasks.
     """
     print(f'py-cord version: {discord.__version__}')
     print(f'Logged in as || name: {bot.user.name} || id: {bot.user.id}')
     print(f'Servers connected to: {bot.guilds}')
-
-    for guild in bot.guilds:
-        print(guild.name)
-        if guild.id not in guild_ids:
-            guild_ids.append(guild.id)
-    with open(file=guild_file, mode='w') as file:
-        json.dump(obj=guild_ids, fp=file, indent=2)
 
     # update the username and avatar
     await bot.user.edit(username=bot_name, avatar=avatar_img)
@@ -158,6 +60,8 @@ async def on_ready():
     await bot.change_presence(
         activity=discord.Activity(type=discord.ActivityType.watching, name=f"the {org_name} server")
     )
+
+    bot.add_view(DonateCommandView())  # register view for persistent listening
 
     try:
         os.environ['DAILY_TASKS']
@@ -171,26 +75,28 @@ async def on_ready():
 
 
 @bot.slash_command(name="help",
-                   description=f"Get help with {bot_name}",
-                   guild_ids=guild_ids,
+                   description=f"Get help with {bot_name}"
                    )
-async def help_command(ctx):
+async def help_command(ctx: discord.ApplicationContext):
     """
-    Send an embed with help information to the server and channel where the command was issued.
-    :param ctx: request message context
-    :return: embed
+    The ``help`` slash command.
+
+    Send a discord embed, with help information, to the server and channel where the command was issued.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
     """
     description = f"""\
     `/help` - Print this message.
-    
-    `/docs <req:project> <opt:version> <opt:user>` - Return url to project docs.
-    `project` - The project to return docs for. Required.
-    `version` - The version of the docs to return. Optional.
+
+    `/docs <opt:user>` - Return url to project docs based on follow up questions.
     `user` - The user to mention in the response. Optional.
-    
+
     `/donate <opt:user>` - See how to support {org_name}.
     `user` - The user to mention in the response. Optional.
-    
+
     `/random <opt:user>` - Return a random video game quote.
     `user` - The user to mention in the response. Optional.
     """
@@ -202,64 +108,49 @@ async def help_command(ctx):
 
 
 @bot.slash_command(name="donate",
-                   description=f"Support the development of {org_name}",
-                   guild_ids=guild_ids,
+                   description=f"Support the development of {org_name}"
                    )
-async def donate_command(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
+async def donate_command(ctx: discord.ApplicationContext,
+                         user: Option(input_type=discord.Member,
+                                      description=user_mention_desc,
+                                      required=False)):
     """
-    Sends embeds with donate information to the server and channel where the command was issued.
-    :param ctx: request message context
-    :param user: username to mention in response
-    :return: embeds
+    The ``donate`` slash command.
+
+    Sends a discord view, with various donation urls, to the server and channel where the
+    command was issued.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
+    user : discord.Commands.Option
+        Username to mention in response.
     """
-    embeds = []
-
-    embeds.append(discord.Embed(color=0x333))
-    embeds[-1].set_author(
-        name='Github Sponsors',
-        url=f'https://github.com/sponsors/{org_name}',
-        icon_url='https://github.com/fluidicon.png'
-    )
-
-    embeds.append(discord.Embed(description='Includes Discord benefits.', color=0x60D1F6))
-    embeds[-1].set_author(
-        name='MEE6',
-        url='https://mee6.xyz/m/804382334370578482',
-        icon_url='https://mee6.xyz/icons-decf734e1b14376075878ea568aa8d3b/apple-touch-icon-180x180.png'
-    )
-
-    embeds.append(discord.Embed(description='Includes Discord benefits.', color=0xf96854))
-    embeds[-1].set_author(
-        name='Patreon',
-        url=f'https://www.patreon.com/{org_name}',
-        icon_url='https://c5.patreon.com/external/favicon/apple-touch-icon.png?v=jw6AR4Rg74'
-    )
-
-    embeds.append(discord.Embed(color=0x003087))
-    embeds[-1].set_author(
-        name='PayPal',
-        url='https://paypal.me/ReenigneArcher',
-        icon_url='https://www.paypalobjects.com/webstatic/icon/pp196.png'
-    )
-
     if user:
-        await ctx.respond(f'Thank you for your support {user.mention}!',
-                          embeds=embeds)
+        await ctx.respond(f'Thank you for your support {user.mention}!', view=DonateCommandView())
     else:
-        await ctx.respond('Thank you for your support!',
-                          embeds=embeds)
+        await ctx.respond('Thank you for your support!', view=DonateCommandView())
 
 
 @bot.slash_command(name="random",
-                   description="Random video game quote",
-                   guild_ids=guild_ids,
+                   description="Random video game quote"
                    )
-async def random_command(ctx, user: Option(discord.Member, description='Select the user to mention') = None):
+async def random_command(ctx: discord.ApplicationContext,
+                         user: Option(discord.Member,
+                                      description=user_mention_desc,
+                                      required=False)):
     """
-    Send an embed with a random quote to the server and channel where the command was issued.
-    :param ctx: request message context
-    :param user: username to mention in response
-    :return: embed
+    The ``random`` slash command.
+
+    Sends a discord embed, with a random video game quote, to the server and channel where the command was issued.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
+    user : discord.Commands.Option
+        Username to mention in response.
     """
     quotes = requests.get(url='https://app.lizardbyte.dev/uno/random-quotes/games.json').json()
 
@@ -287,94 +178,42 @@ async def random_command(ctx, user: Option(discord.Member, description='Select t
         await ctx.respond(embed=embed)
 
 
-# get projects list from readthedocs
-def get_readthedocs() -> list:
-    url_base = 'https://readthedocs.org'
-    url = f'{url_base}/api/v3/projects/'
-    headers = {'Authorization': f'token {READTHEDOCS_TOKEN}'}
-
-    results = []
-
-    while True:
-        res = requests.get(url, headers=headers)
-        data = res.json()
-
-        results.extend(data['results'])
-
-        if data['next']:
-            url = f"{url_base}{data['next']}"
-        else:
-            break
-
-    return results
-
-
-def get_readthedocs_names() -> list:
-    names = []
-
-    projects = get_readthedocs()
-    for project in projects:
-        names.append(project['name'])
-
-    return names
-
-
 @bot.slash_command(name="docs",
-                   description="Return docs for any project.",
-                   guild_ids=guild_ids,
+                   description="Return docs for any project."
                    )
-async def docs_command(ctx,
-                       project: Option(str,
-                                       description='Select the project',
-                                       choices=get_readthedocs_names(),
-                                       required=True
-                                       ),
-                       version: Option(str,
-                                       description='Documentation for which version',
-                                       choices=['latest', 'nightly'],
-                                       required=False
-                                       ) = 'latest',
+async def docs_command(ctx: discord.ApplicationContext,
                        user: Option(discord.Member,
-                                    description='Select the user to mention'
-                                    ) = None
-                       ):
+                                    description=user_mention_desc,
+                                    required=False)):
     """
-    Send an embed with a project documentation.
-    :param ctx: request message context
-    :param project: the project
-    :param version: the version of the documentation
-    :param user: username to mention in response
-    :return: embed
+    The ``docs`` slash command.
+
+    Sends a discord embed, with `Select Menus` allowing the user to select the specific documentation,
+    to the server and channel where the command was issued.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
+    user : discord.Commands.Option
+        Username to mention in response.
     """
-    readthedocs = get_readthedocs()
-    project_url = None
-    for docs in readthedocs:
-        if project == docs['name']:
-            project_url = docs['urls']['documentation']
-            break
+    embed = discord.Embed(title="Select a project", color=0xDC143C)
+    embed.set_footer(text=bot_name, icon_url=avatar)
 
-    if project_url:
-        project_url = project_url.replace('/en/latest/', f'/en/{version}/')
-
-        description = f"""\
-        Here is the `{version}` documentation for `{project}`.
-        """
-
-        embed = discord.Embed(title=project_url, url=project_url, description=description, color=0x00ff00)
-        embed.set_footer(text=bot_name, icon_url=avatar)
-
-        if user:
-            await ctx.respond(user.mention, embed=embed)
-        else:
-            await ctx.respond(embed=embed)
+    if user:
+        await ctx.respond(f'{ctx.author.mention}, {user.mention}', embed=embed, view=DocsCommandView(ctx=ctx))
+    else:
+        await ctx.respond(f'{ctx.author.mention}', embed=embed, view=DocsCommandView(ctx=ctx))
 
 
 @tasks.loop(minutes=60.0)
 async def daily_task():
     """
-    Functions to run on a schedule.
+    Run daily task loop.
 
-    - Create an embed and thread for each game released on this day in history, if enabled.
+    This function runs on a schedule, every 60 minutes. Create an embed and thread for each game released
+    on this day in history (according to IGDB), if enabled.
     """
     if datetime.utcnow().hour == int(os.getenv(key='daily_tasks_utc_hour', default=12)):
         daily_releases = False
@@ -399,10 +238,22 @@ async def daily_task():
                 wrapper = IGDBWrapper(client_id=os.environ['IGDB_CLIENT_ID'], auth_token=igdb_auth['access_token'])
 
                 end_point = 'release_dates'
-                fields = 'human, game.name, game.summary, game.url, game.genres.name, game.rating, game.cover.url, game.artworks.url, game.platforms.name, game.platforms.url'
+                fields = [
+                    'human',
+                    'game.name',
+                    'game.summary',
+                    'game.url',
+                    'game.genres.name',
+                    'game.rating',
+                    'game.cover.url',
+                    'game.artworks.url',
+                    'game.platforms.name',
+                    'game.platforms.url'
+                ]
+
                 where = f'human="{month_dictionary[datetime.utcnow().month]} {datetime.utcnow().day:02d}"*'
                 limit = 500
-                query = f'fields {fields}; where {where}; limit {limit};'
+                query = f'fields {", ".join(fields)}; where {where}; limit {limit};'
 
                 byte_array = bytes(wrapper.api_request(endpoint=end_point, query=query))
                 json_result = json.loads(byte_array)
@@ -427,7 +278,7 @@ async def daily_task():
                         embed = discord.Embed(
                             title=game['game']['name'],
                             url=game['game']['url'],
-                            description=game['game']['summary'][0:2000-1],
+                            description=game['game']['summary'][0:2000 - 1],
                             color=color
                         )
                     except KeyError:
