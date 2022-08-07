@@ -29,6 +29,7 @@ bot = discord.Bot(intents=discord.Intents.all(), auto_sync_commands=True)
 org_name = 'LizardByte'
 bot_name = f'{org_name}-Bot'
 bot_url = 'https://app.lizardbyte.dev'
+user_mention_desc = 'Select the user to mention'
 
 # avatar
 avatar = get_bot_avatar(gravatar=os.environ['GRAVATAR_EMAIL'])
@@ -74,7 +75,7 @@ async def on_ready():
 
 
 @bot.slash_command(name="help",
-                   description=f"Get help with {bot_name}",
+                   description=f"Get help with {bot_name}"
                    )
 async def help_command(ctx: discord.ApplicationContext):
     """
@@ -89,13 +90,13 @@ async def help_command(ctx: discord.ApplicationContext):
     """
     description = f"""\
     `/help` - Print this message.
-    
+
     `/docs <opt:user>` - Return url to project docs based on follow up questions.
     `user` - The user to mention in the response. Optional.
-    
+
     `/donate <opt:user>` - See how to support {org_name}.
     `user` - The user to mention in the response. Optional.
-    
+
     `/random <opt:user>` - Return a random video game quote.
     `user` - The user to mention in the response. Optional.
     """
@@ -107,13 +108,12 @@ async def help_command(ctx: discord.ApplicationContext):
 
 
 @bot.slash_command(name="donate",
-                   description=f"Support the development of {org_name}",
+                   description=f"Support the development of {org_name}"
                    )
 async def donate_command(ctx: discord.ApplicationContext,
-                         user: Option(
-                             input_type=discord.Member,
-                             description='Select the user to mention') = None
-                         ):
+                         user: Option(input_type=discord.Member,
+                                      description=user_mention_desc,
+                                      required=False)):
     """
     The ``donate`` slash command.
 
@@ -134,13 +134,12 @@ async def donate_command(ctx: discord.ApplicationContext,
 
 
 @bot.slash_command(name="random",
-                   description="Random video game quote",
+                   description="Random video game quote"
                    )
 async def random_command(ctx: discord.ApplicationContext,
-                         user: Option(
-                             input_type=discord.Member,
-                             description='Select the user to mention') = None
-                         ):
+                         user: Option(discord.Member,
+                                      description=user_mention_desc,
+                                      required=False)):
     """
     The ``random`` slash command.
 
@@ -180,13 +179,12 @@ async def random_command(ctx: discord.ApplicationContext,
 
 
 @bot.slash_command(name="docs",
-                   description="Return docs for any project.",
+                   description="Return docs for any project."
                    )
 async def docs_command(ctx: discord.ApplicationContext,
                        user: Option(discord.Member,
-                                    description='Select the user to mention'
-                                    ) = None
-                       ):
+                                    description=user_mention_desc,
+                                    required=False)):
     """
     The ``docs`` slash command.
 
