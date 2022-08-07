@@ -1,3 +1,4 @@
+---
 name: CI
 
 on:
@@ -13,21 +14,21 @@ jobs:
     name: Check Changelog
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      if: ${{ github.ref == 'refs/heads/master' || github.base_ref == 'master' }}
-      uses: actions/checkout@v3
+      - name: Checkout
+        if: ${{ github.ref == 'refs/heads/master' || github.base_ref == 'master' }}
+        uses: actions/checkout@v3
 
-    - name: Verify Changelog
-      id: verify_changelog
-      if: ${{ github.ref == 'refs/heads/master' || github.base_ref == 'master' }}
-      # base_ref for pull request check, ref for push
-      uses: LizardByte/.github/actions/verify_changelog@master
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify Changelog
+        id: verify_changelog
+        if: ${{ github.ref == 'refs/heads/master' || github.base_ref == 'master' }}
+        # base_ref for pull request check, ref for push
+        uses: LizardByte/.github/actions/verify_changelog@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
       next_version: ${{ steps.verify_changelog.outputs.changelog_parser_version }}
       last_version: ${{ steps.verify_changelog.outputs.latest_release_tag_name }}
-      release_body:  ${{ steps.verify_changelog.outputs.changelog_parser_description }}
+      release_body: ${{ steps.verify_changelog.outputs.changelog_parser_description }}
 
   create_release:
     runs-on: ubuntu-latest
