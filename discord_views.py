@@ -1,14 +1,21 @@
+# standard imports
+from typing import Tuple
+
 # lib imports
 from bs4 import BeautifulSoup
 import discord
 from discord.ui.select import Select
+from discord.ui.button import Button
 import requests
 
 # local imports
+from discord_avatar import avatar
+from discord_constants import bot_name
 from discord_helpers import get_json
+from discord_modals import RefundModal
 
 
-class DocsCommandDefaultProjects(object):
+class DocsCommandDefaultProjects:
     """
     Class representing default projects for ``docs`` slash command.
 
@@ -67,9 +74,10 @@ class DocsCommandView(discord.ui.View):
         A list of sections for the selected page.
     """
     def __init__(self, ctx: discord.ApplicationContext):
-        super().__init__(timeout=60)
+        super().__init__(timeout=45)
 
         self.ctx = ctx
+        self.interaction = None
 
         # final values
         self.docs_project = None
@@ -86,19 +94,68 @@ class DocsCommandView(discord.ui.View):
         self.pages = None
         self.sections = None
 
-    # timeout is not working, see: https://github.com/Pycord-Development/pycord/issues/1549
-    # async def on_timeout(self):
-    #     """
-    #     Timeout callback.
-    #
-    #     Disable children items, and edit the original message.
-    #     """
-    #     for child in self.children:
-    #         child.disabled = True
-    #
-    #     embed = discord.Embed(title="...", color=0xDC143C)
-    #     embed.set_footer(text=bot_name, icon_url=avatar)
-    #     await self.message.edit(embed=embed, view=self)
+        # reset the first select menu because it remembers the last selected value
+        self.children[0].options = DocsCommandDefaultProjects().projects_options
+
+    # check selections completed
+    def check_completion_status(self) -> Tuple[bool, discord.Embed]:
+        """
+        Check if Select Menu choices are valid.
+
+        Obtaining a valid docs url depends on the selections made in the select menus. This function checks if
+        the conditions are met to provide a valid docs url.
+
+        Returns
+        -------
+        Tuple[bool, discord.Embed]
+        """
+        complete = False
+        embed = discord.Embed()
+        embed.set_footer(text=bot_name, icon_url=avatar)
+
+        url = f'{self.docs_version}{self.docs_section}'
+
+        if self.docs_project and self.docs_version:  # the project and version are selected
+            if self.docs_category is not None:  # category has a value, which may be ""
+                if self.docs_category:  # category is selected, so the next item must not be blank
+                    if self.docs_page is not None and self.docs_section is not None:  # info is complete
+                        complete = True
+                else:  # info is complete IF category is ""
+                    complete = True
+
+        if complete:
+            embed.title = f'{self.docs_project} | {self.docs_category}' if self.docs_category else self.docs_project
+            embed.description = f'The selected docs are available at {url}'
+            embed.color = 0x39FF14  # PyCharm complains that the color is read only, but this works anyway
+            embed.url = url
+        else:
+            # info is not complete
+            embed.title = "Select the remaining values"
+            embed.description = None
+            embed.color = 0xF1C232
+            embed.url = None
+
+        return complete, embed
+
+    async def on_timeout(self):
+        """
+        Timeout callback.
+
+        Disable children items, and edit the original message.
+        """
+        for child in self.children:
+            child.disabled = True
+
+        complete, embed = self.check_completion_status()
+
+        if not complete:
+            embed.title = "Command timed out..."
+            embed.color = 0xDC143C
+            delete_after = 30  # delete after 30 seconds
+        else:
+            delete_after = None  # do not delete
+
+        await self.ctx.interaction.edit_original_message(embed=embed, view=self, delete_after=delete_after)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """
@@ -135,6 +192,8 @@ class DocsCommandView(discord.ui.View):
         interaction : discord.Interaction
             The original discord interaction object.
         """
+        self.interaction = interaction
+
         select_index = None
         index = 0
         for child in self.children:
@@ -280,41 +339,12 @@ class DocsCommandView(discord.ui.View):
             self.docs_page = None
             self.docs_section = None
         elif select == self.children[2]:  # chose the docs category
-            self.docs_page = None
-            self.docs_section = None
+            self.docs_page = None if self.children[2].values[0] != 'None' else ''
+            self.docs_section = None if self.children[2].values[0] != 'None' else ''
         elif select == self.children[3]:  # chose the docs page
             self.docs_section = None
 
-        # get the original embed
-        embed = interaction.message.embeds[0]  # we know there is only 1 embed
-
-        if self.docs_project and self.docs_version:  # the project and version are selected
-            url = f'{self.docs_version}{self.docs_section}'
-
-            if self.docs_category is not None:  # category has a value, which may be ""
-                if self.docs_category:  # category is selected, so the next item must not be blank
-                    if self.docs_page is not None and self.docs_section is not None:  # info is complete
-                        embed.title = f'{self.docs_project} | {self.docs_category}'
-                        embed.description = f'The selected docs are available at {url}'
-                        embed.color = 0x39FF14  # PyCharm complains that the color is read only, but this works anyway
-                        embed.url = url
-
-                        await interaction.response.edit_message(embed=embed, view=self)
-                        return
-                else:  # info is complete IF category is ""
-                    embed.title = f'{self.docs_project} | {self.docs_category}'
-                    embed.description = f'The selected docs are available at {url}'
-                    embed.color = 0x39FF14  # PyCharm complains that the color is read only, but this works anyway
-                    embed.url = url
-
-                    await interaction.response.edit_message(embed=embed, view=self)
-                    return
-
-        # info is not complete
-        embed.title = "Select the remaining values"
-        embed.description = None
-        embed.color = 0xDC143C
-        embed.url = None
+        complete, embed = self.check_completion_status()
 
         await interaction.response.edit_message(embed=embed, view=self)
 
@@ -326,7 +356,7 @@ class DocsCommandView(discord.ui.View):
         options=DocsCommandDefaultProjects().projects_options
     )
     async def slug_callback(self, select: Select, interaction: discord.Interaction):
-        await self.callback(select, interaction)
+        await self.callback(select=select, interaction=interaction)
 
     @discord.ui.select(
         placeholder="Choose version...",
@@ -408,3 +438,15 @@ class DonateCommandView(discord.ui.View):
             )
 
             self.add_item(button)
+
+
+class RefundCommandView(discord.ui.View):
+    """
+    Class representing `discord.ui.View` for ``refund`` slash command.
+    """
+    def __init__(self):
+        super().__init__(timeout=None)  # timeout of the view must be set to None, view is persistent
+
+    @discord.ui.button(label="Refund form", style=discord.ButtonStyle.red, custom_id='button-refund')
+    async def button_callback(self, button: Button, interaction: discord.Interaction):
+        await interaction.response.send_modal(RefundModal(title="Refund Request Form"))
