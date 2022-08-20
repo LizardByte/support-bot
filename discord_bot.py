@@ -1,6 +1,5 @@
 # standard imports
 from datetime import datetime
-from io import BytesIO
 import json
 import os
 import random
@@ -13,29 +12,23 @@ from igdb.wrapper import IGDBWrapper
 import requests
 
 # local imports
-from discord_helpers import get_bot_avatar, igdb_authorization, month_dictionary
-from discord_views import DocsCommandView, DonateCommandView
+from discord_constants import org_name, bot_name, bot_url
+from discord_helpers import igdb_authorization, month_dictionary
 import keep_alive
 
 # development imports
 from dotenv import load_dotenv
 load_dotenv(override=False)  # environment secrets take priority over .env file
 
+if True:  # hack for flake8
+    from discord_avatar import avatar, avatar_img
+    from discord_views import DocsCommandView, DonateCommandView, RefundCommandView
 
 # constants
 bot_token = os.environ['BOT_TOKEN']
 bot = discord.Bot(intents=discord.Intents.all(), auto_sync_commands=True)
 
-org_name = 'LizardByte'
-bot_name = f'{org_name}-Bot'
-bot_url = 'https://app.lizardbyte.dev'
 user_mention_desc = 'Select the user to mention'
-
-# avatar
-avatar = get_bot_avatar(gravatar=os.environ['GRAVATAR_EMAIL'])
-
-response = requests.get(url=avatar)
-avatar_img = BytesIO(response.content).read()
 
 # context reference
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
@@ -198,13 +191,55 @@ async def docs_command(ctx: discord.ApplicationContext,
     user : discord.Commands.Option
         Username to mention in response.
     """
-    embed = discord.Embed(title="Select a project", color=0xDC143C)
+    embed = discord.Embed(title="Select a project", color=0xF1C232)
     embed.set_footer(text=bot_name, icon_url=avatar)
 
     if user:
-        await ctx.respond(f'{ctx.author.mention}, {user.mention}', embed=embed, view=DocsCommandView(ctx=ctx))
+        await ctx.respond(
+            f'{ctx.author.mention}, {user.mention}',
+            embed=embed,
+            ephemeral=False,
+            view=DocsCommandView(ctx=ctx)
+        )
     else:
-        await ctx.respond(f'{ctx.author.mention}', embed=embed, view=DocsCommandView(ctx=ctx))
+        await ctx.respond(
+            f'{ctx.author.mention}',
+            embed=embed,
+            ephemeral=False,
+            view=DocsCommandView(ctx=ctx)
+        )
+
+
+@bot.slash_command(name="refund",
+                   description="Refund form for unhappy customers."
+                   )
+async def refund_command(ctx: discord.ApplicationContext,
+                         user: Option(discord.Member,
+                                      description=user_mention_desc,
+                                      required=False)):
+    """
+    The ``refund`` slash command.
+
+    Sends a discord embed, with a `Modal`, to the server and channel where the command was issued. This command is
+    pure satire.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
+    user : discord.Commands.Option
+        Username to mention in response.
+    """
+    embed = discord.Embed(title="Refund request",
+                          description="Original purchase price: $0.00\n\n"
+                                      "Select the button below to request a full refund!",
+                          color=0xDC143C)
+    embed.set_footer(text=bot_name, icon_url=avatar)
+
+    if user:
+        await ctx.respond(user.mention, embed=embed, view=RefundCommandView())
+    else:
+        await ctx.respond(embed=embed, view=RefundCommandView())
 
 
 @tasks.loop(minutes=60.0)

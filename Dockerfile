@@ -22,6 +22,9 @@ ENV GRAVATAR_EMAIL=$GRAVATAR_EMAIL
 ENV IGDB_CLIENT_ID=$IGDB_CLIENT_ID
 ENV IGDB_CLIENT_SECRET=$IGDB_CLIENT_SECRET
 
+RUN mkdir /app
+WORKDIR /app/
+
 COPY requirements.txt .
 COPY *.py .
 RUN pip install --no-cache-dir -r requirements.txt
