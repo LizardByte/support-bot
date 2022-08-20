@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.1] - 2022-08-20
+### Changed
+- Enable timeout callback for `/docs` command after 45s
+- Incomplete `/docs` commands are deleted 30s after the timeout period
+- `/docs` command is reset for each call
+- Fix url returned for `/docs` command when `None` was selected as category
+- Move constants to `discord_constants.py`
+- Move avatar related items to `discord_avatar.py`
+### Added
+- Add `discord_modals.py`
+### Dependencies
+- Bump flask from 2.2.1 to 2.2.2
+- Bump py-cord from 2.0.0 to 2.0.1
+
+
 ## [0.1.0] - 2022-08-07
 ### Changed
 - Select Menus added to `docs` slash command to give finer control of returned documentation url
