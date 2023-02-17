@@ -1,6 +1,6 @@
 beautifulsoup4==4.11.1
 Flask==2.2.2
-igdb-api-v4==0.0.5
+igdb-api-v4==0.1.0
 libgravatar==1.0.0
 py-cord==2.0.1
 python-dotenv==0.20.0
