@@ -1,5 +1,5 @@
 beautifulsoup4==4.11.1
-Flask==2.2.2
+Flask==2.2.3
 igdb-api-v4==0.1.0
 libgravatar==1.0.0
 py-cord==2.0.1
