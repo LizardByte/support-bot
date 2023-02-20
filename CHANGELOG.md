@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.2] - 2023-02-19
+### Dependencies
+- Bump flask from 2.2.2 to 2.2.3
+- Bump igdb-api-v4 from 0.0.5 to 0.1.0
+- Bump requests from 2.28.1 to 2.28.2
+- Bump python-dotenv from 0.20.0 to 0.21.1
+- Bump libgravatar from 1.0.0 to 1.0.3
+- Bump beautifulsoup4 from 4.11.1 to 4.11.2
+- Bump py-cord from 2.0.1 to 2.4.0
+- Bump python from 3.9.12 to 3.11.2
+
 ## [0.1.1] - 2022-08-20
 ### Changed
 - Enable timeout callback for `/docs` command after 45s
@@ -56,3 +67,12 @@
 ## [0.0.1] - 2022-04-03
 ### Added
 - (Misc.) Initial release
+
+[0.0.1]: https://github.com/lizardbyte/discord-bot/releases/tag/v0.0.1
+[0.0.2]: https://github.com/lizardbyte/discord-bot/releases/tag/v0.0.2
+[0.0.3]: https://github.com/lizardbyte/discord-bot/releases/tag/v0.0.3
+[0.0.4]: https://github.com/lizardbyte/discord-bot/releases/tag/v0.0.4
+[0.0.5]: https://github.com/lizardbyte/discord-bot/releases/tag/v0.0.5
+[0.1.0]: https://github.com/lizardbyte/discord-bot/releases/tag/v0.1.0
+[0.1.1]: https://github.com/lizardbyte/discord-bot/releases/tag/v0.1.1
+[0.1.2]: https://github.com/lizardbyte/discord-bot/releases/tag/v0.1.2
