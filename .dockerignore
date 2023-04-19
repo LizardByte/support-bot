@@ -1,0 +1,12 @@
+# ignore git files
+.git*
+
+# ignore hidden files
+.*
+
+# ignore directories
+docs/
+tests/
+
+# ignore venv when building locally
+venv/
