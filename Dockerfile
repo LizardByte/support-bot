@@ -1,4 +1,7 @@
-FROM python:3.11.2-slim-bullseye
+# syntax=docker/dockerfile:1.4
+# artifacts: false
+# platforms: linux/amd64
+FROM python:3.11.3-slim-bullseye
 
 # Basic config
 ARG DAILY_TASKS=true
@@ -22,7 +25,6 @@ ENV GRAVATAR_EMAIL=$GRAVATAR_EMAIL
 ENV IGDB_CLIENT_ID=$IGDB_CLIENT_ID
 ENV IGDB_CLIENT_SECRET=$IGDB_CLIENT_SECRET
 
-RUN mkdir /app
 WORKDIR /app/
 
 COPY requirements.txt .
