@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 import os
 import random
+from typing import Union
 
 # lib imports
 import discord
@@ -29,6 +30,7 @@ bot_token = os.environ['BOT_TOKEN']
 bot = discord.Bot(intents=discord.Intents.all(), auto_sync_commands=True)
 
 user_mention_desc = 'Select the user to mention'
+recommended_channel_desc = 'Select the recommended channel'
 
 # context reference
 # https://discordpy.readthedocs.io/en/latest/ext/commands/api.html#discord.ext.commands.Context
@@ -67,9 +69,10 @@ async def on_ready():
             print("'DAILY_TASKS' environment variable is disabled")
 
 
-@bot.slash_command(name="help",
-                   description=f"Get help with {bot_name}"
-                   )
+@bot.slash_command(
+    name="help",
+    description=f"Get help with {bot_name}"
+)
 async def help_command(ctx: discord.ApplicationContext):
     """
     The ``help`` slash command.
@@ -83,6 +86,8 @@ async def help_command(ctx: discord.ApplicationContext):
     """
     description = f"""\
     `/help` - Print this message.
+
+    `/channel <channel> <opt:access_ch>` - Suggest to move discussion to a different channel.
 
     `/docs <opt:user>` - Return url to project docs based on follow up questions.
     `user` - The user to mention in the response. Optional.
@@ -100,13 +105,91 @@ async def help_command(ctx: discord.ApplicationContext):
     await ctx.respond(embed=embed)
 
 
-@bot.slash_command(name="donate",
-                   description=f"Support the development of {org_name}"
-                   )
+@bot.slash_command(
+    name="channel",
+    description="Suggest to move discussion to a different channel"
+)
+async def channel(ctx: discord.ApplicationContext,
+                  recommended_channel: Option(
+                      input_type=Union[discord.ForumChannel, discord.TextChannel],
+                      description=recommended_channel_desc,
+                      required=True)
+                  ):
+    """
+    The ``channel`` slash command.
+
+    Sends a discord embed, with a suggestion to move discussion to a different channel. Additionally, the command will
+    let the users know how to gain access to additional channels.
+
+    Parameters
+    ----------
+    ctx : discord.ApplicationContext
+        Request message context.
+    recommended_channel : discord.Commands.Option
+        The recommended channel to move discussion to.
+    """
+    categories_map = {
+        "dev lounge": "roles",
+        "insider lounge": "roles",
+    }
+
+    # test if recommended_channel has an integer value
+    try:
+        channel_id = int(recommended_channel.lstrip("<#").rstrip(">"))
+    except ValueError:
+        await ctx.respond(f":bangbang: `{recommended_channel}` is not a valid channel.", ephemeral=True)
+        return
+
+    channel_obj: discord.TextChannel = bot.get_guild(ctx.guild_id).get_channel(channel_id)
+
+    # test if recommended_channel is a valid channel
+    try:
+        channel_name = channel_obj.name.lower()
+    except AttributeError:
+        await ctx.respond(f":bangbang: `{recommended_channel}` is not a valid channel in this guild.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="Incorrect channel",
+        description=f"Please move discussion to {recommended_channel}.",
+        color=0x00ff00,
+    )
+
+    permission_ch_id = ''
+    try:
+        category_name = channel_obj.category.name.lower()
+    except AttributeError:
+        pass
+    else:
+        if category_name in categories_map:
+            for _ in ctx.guild.text_channels:
+                if _.name == categories_map[category_name]:
+                    permission_ch_id = f'<#{_.id}>\n'
+                    break
+
+    # special channel mentions
+    # https://github.com/Pycord-Development/pycord/discussions/2020#discussioncomment-5666672
+    embed.add_field(
+        name=f"Need access to `{channel_name}`?",
+        value=f"You may need to give yourself access in one of these channels:\n {permission_ch_id}"
+              "<id:customize>\n <id:browse>."
+    )
+
+    embed.set_footer(text=bot_name, icon_url=avatar)
+
+    await ctx.respond(embed=embed)
+
+
+@bot.slash_command(
+    name="donate",
+    description=f"Support the development of {org_name}"
+)
 async def donate_command(ctx: discord.ApplicationContext,
-                         user: Option(input_type=discord.Member,
-                                      description=user_mention_desc,
-                                      required=False)):
+                         user: Option(
+                             input_type=discord.Member,
+                             description=user_mention_desc,
+                             required=False)
+                         ):
     """
     The ``donate`` slash command.
 
@@ -126,13 +209,16 @@ async def donate_command(ctx: discord.ApplicationContext,
         await ctx.respond('Thank you for your support!', view=DonateCommandView())
 
 
-@bot.slash_command(name="random",
-                   description="Random video game quote"
-                   )
+@bot.slash_command(
+    name="random",
+    description="Random video game quote"
+)
 async def random_command(ctx: discord.ApplicationContext,
-                         user: Option(discord.Member,
-                                      description=user_mention_desc,
-                                      required=False)):
+                         user: Option(
+                             input_type=discord.Member,
+                             description=user_mention_desc,
+                             required=False)
+                         ):
     """
     The ``random`` slash command.
 
@@ -171,13 +257,16 @@ async def random_command(ctx: discord.ApplicationContext,
         await ctx.respond(embed=embed)
 
 
-@bot.slash_command(name="docs",
-                   description="Return docs for any project."
-                   )
+@bot.slash_command(
+    name="docs",
+    description="Return docs for any project."
+)
 async def docs_command(ctx: discord.ApplicationContext,
-                       user: Option(discord.Member,
-                                    description=user_mention_desc,
-                                    required=False)):
+                       user: Option(
+                           input_type=discord.Member,
+                           description=user_mention_desc,
+                           required=False)
+                       ):
     """
     The ``docs`` slash command.
 
@@ -210,13 +299,16 @@ async def docs_command(ctx: discord.ApplicationContext,
         )
 
 
-@bot.slash_command(name="refund",
-                   description="Refund form for unhappy customers."
-                   )
+@bot.slash_command(
+    name="refund",
+    description="Refund form for unhappy customers."
+)
 async def refund_command(ctx: discord.ApplicationContext,
-                         user: Option(discord.Member,
-                                      description=user_mention_desc,
-                                      required=False)):
+                         user: Option(
+                             input_type=discord.Member,
+                             description=user_mention_desc,
+                             required=False)
+                         ):
     """
     The ``refund`` slash command.
 
