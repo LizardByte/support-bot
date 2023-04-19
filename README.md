@@ -5,12 +5,13 @@ Discord bot written in python to help manage the LizardByte discord server.
 ## Overview
 This is a custom discord bot with some slash commands to help with support on the LizardByte discord server.
 
-| command | argument 1 | description                      |
-|---------|------------|----------------------------------|
-| /help   |            | Return help message              |
-| /docs   | user       | Return the specified docs page   |
-| /donate | user       | Return donation links            |
-| /random |            | Return a random video game quote |
+| command  | description                                       | argument 1          |
+|----------|---------------------------------------------------|---------------------|
+| /help    | Return help message                               |                     |
+| /channel | Suggest to move discussion to a different channel | recommended_channel |
+| /docs    | Return the specified docs page                    | user                |
+| /donate  | Return donation links                             | user                |
+| /random  | Return a random video game quote                  |                     |
 
 
 ## Instructions
