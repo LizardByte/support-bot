@@ -31,9 +31,9 @@ jobs:
         with:
           allowUpdates: true
           artifacts: ""
-          body: ${{ steps.setup_release.outputs.release_body }}
+          body: ''
           discussionCategory: announcements
-          generateReleaseNotes: ${{ steps.setup_release.outputs.release_generate_release_notes }}
+          generateReleaseNotes: true
           name: ${{ steps.setup_release.outputs.release_tag }}
           prerelease: ${{ steps.setup_release.outputs.publish_pre_release }}
           tag: ${{ steps.setup_release.outputs.release_tag }}
