@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 # artifacts: false
 # platforms: linux/amd64
-FROM python:3.11.3-slim-bullseye
+FROM python:3.12.2-slim-bullseye
 
 # Basic config
 ARG DAILY_TASKS=true
