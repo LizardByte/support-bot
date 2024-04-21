@@ -11,10 +11,12 @@ import time
 from typing import Optional
 
 # lib imports
-from libgravatar import Gravatar
 import praw
 from praw import models
 from praw.util.token_manager import FileTokenManager
+
+# local imports
+import common
 
 # modify as required
 APP = 'lizardbyte-bot'
@@ -140,27 +142,6 @@ def send_message(client: socket.socket, message: str):
     print(f'message: {message}')
     client.send(f"HTTP/1.1 200 OK\r\n\r\n{message}".encode("utf-8"))
     client.close()
-
-
-def get_bot_avatar(gravatar: str) -> str:
-    """
-    Get the gravatar of a given email.
-
-    Parameters
-    ----------
-    gravatar : str
-        The gravatar email.
-
-    Returns
-    -------
-    str
-        The gravatar image url.
-    """
-
-    g = Gravatar(email=gravatar)
-    image_url = g.get_image()
-
-    return image_url
 
 
 def process_submission(submission: models.Submission):
@@ -346,7 +327,7 @@ def init():
 
     # avatar
     global avatar
-    avatar = get_bot_avatar(gravatar=os.environ['GRAVATAR_EMAIL'])
+    avatar = common.get_bot_avatar(gravatar=os.environ['GRAVATAR_EMAIL'])
 
     # verify reddit refresh token or get new
     token = initialize_refresh_token_file()
