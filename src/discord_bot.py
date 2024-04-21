@@ -1,8 +1,10 @@
 # standard imports
+import asyncio
 from datetime import datetime
 import json
 import os
 import random
+import threading
 from typing import Union
 
 # lib imports
@@ -15,18 +17,11 @@ import requests
 # local imports
 from discord_constants import org_name, bot_name, bot_url
 from discord_helpers import igdb_authorization, month_dictionary
-import keep_alive
-
-# development imports
-from dotenv import load_dotenv
-load_dotenv(override=False)  # environment secrets take priority over .env file
-
-if True:  # hack for flake8
-    from discord_avatar import avatar, avatar_img
-    from discord_views import DocsCommandView, DonateCommandView, RefundCommandView
+from discord_avatar import avatar, avatar_img
+from discord_views import DocsCommandView, DonateCommandView, RefundCommandView
 
 # constants
-bot_token = os.environ['BOT_TOKEN']
+bot_token = os.environ['DISCORD_BOT_TOKEN']
 bot = discord.Bot(intents=discord.Intents.all(), auto_sync_commands=True)
 
 user_mention_desc = 'Select the user to mention'
@@ -502,21 +497,29 @@ async def daily_task():
 
                     print(f'thread created: {thread.name}')
 
-# to run in replit
-try:
-    os.environ['REPL_SLUG']
-except KeyError:
-    pass  # not running in replit
-else:
-    keep_alive.keep_alive()  # Start the web server
+bot_thread = threading.Thread(target=lambda: None)
 
-try:
-    bot.loop.run_until_complete(future=bot.start(token=bot_token))  # Login the bot
-except KeyboardInterrupt:
-    print("Keyboard Interrupt Detected")
-finally:
+
+def start():
+    global bot_thread
+    try:
+        # Login the bot in a separate thread
+        bot_thread = threading.Thread(
+            target=bot.loop.run_until_complete,
+            args=(bot.start(token=bot_token),),
+            daemon=True
+        )
+        bot_thread.start()
+    except KeyboardInterrupt:
+        print("Keyboard Interrupt Detected")
+        stop()
+
+
+def stop():
     print("Attempting to stop daily tasks")
     daily_task.stop()
     print("Attempting to close bot connection")
-    bot.loop.run_until_complete(future=bot.close())
+    if bot_thread is not None and bot_thread.is_alive():
+        asyncio.run_coroutine_threadsafe(bot.close(), bot.loop)
+        bot_thread.join()
     print("Closed bot")

@@ -1,9 +1,11 @@
-# discord-bot
-Discord bot written in python to help manage the LizardByte discord server.
+# support-bot
+Support bot written in python to help manage LizardByte communities. The current focus is discord and reddit, but other
+platforms such as GitHub discussions/issues could be added.
 
 
 ## Overview
-This is a custom discord bot with some slash commands to help with support on the LizardByte discord server.
+
+### Discord Slash Commands
 
 | command  | description                                       | argument 1          |
 |----------|---------------------------------------------------|---------------------|
@@ -15,6 +17,9 @@ This is a custom discord bot with some slash commands to help with support on th
 
 
 ## Instructions
+
+### Discord
+
 * Setup an application at [discord developer portal](https://discord.com/developers/applications).
 * On `Bot` page enabled these:
   * Presence Intent
@@ -26,7 +31,7 @@ This is a custom discord bot with some slash commands to help with support on th
 
 | variable             | required | default | description                                                   |
 |----------------------|----------|---------|---------------------------------------------------------------|
-| BOT_TOKEN            | True     | None    | Token from Bot page on discord developer portal.              |
+| DISCORD_BOT_TOKEN    | True     | None    | Token from Bot page on discord developer portal.              |
 | DAILY_TASKS          | False    | true    | Daily tasks on or off.                                        |
 | DAILY_RELEASES       | False    | true    | Send a message for each game released on this day in history. |
 | DAILY_CHANNEL_ID     | False    | None    | Required if daily_tasks is enabled.                           |
@@ -36,6 +41,34 @@ This is a custom discord bot with some slash commands to help with support on th
 | IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
 
 * Running bot:
-  * `python discord_bot.py`
+  * `python ./src/main.py`
 * Invite bot to server:
   * `https://discord.com/api/oauth2/authorize?client_id=<the client id of the bot>&permissions=8&scope=bot%20applications.commands`
+
+
+### Reddit
+
+* Set up an application at [reddit apps](https://www.reddit.com/prefs/apps/).
+  * The redirect uri must be publicly accessible.
+    * If using Replit, enter `https://<REPL_SLUG>.<REPL_OWNER>.repl.co`
+    * Otherwise, it is recommended to use [Nginx Proxy Manager](https://nginxproxymanager.com/) and [Duck DNS](https://www.duckdns.org/)
+  * Take note of the `client_id` and `client_secret`
+* Enter the following as environment variables  
+
+  | Parameter          | Required | Default | Description                                                             |
+  |--------------------|----------|---------|-------------------------------------------------------------------------|
+  | PRAW_CLIENT_ID     | True     | None    | `client_id` from reddit app setup page.                                 |
+  | PRAW_CLIENT_SECRET | True     | None    | `client_secret` from reddit app setup page.                             |
+  | PRAW_SUBREDDIT     | True     | None    | Subreddit to monitor (reddit user should be moderator of the subreddit) |
+  | DISCORD_WEBHOOK    | False    | None    | URL of webhook to send discord notifications to                         |
+  | GRAVATAR_EMAIL     | False    | None    | Gravatar email address to get avatar from                               |
+  | REDIRECT_URI       | True     | None    | The redirect URI entered during the reddit application setup            |
+
+* First run (or manually get a new refresh token):
+  * Delete `./data/refresh_token` file if needed
+  * `python ./src/main.py`
+  * Open browser and login to reddit account to use with bot
+  * Navigate to URL printed in console and accept
+  * `./data/refresh_token` file is written
+* Running after refresh_token already obtained:
+  * `python ./src/main.py`

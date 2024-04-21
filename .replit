@@ -1,5 +1,5 @@
 # The command that is executed when the run button is clicked.
-run = ["python", "discord_bot.py"]
+run = ["python", "src/main.py"]
 
 # The default file opened in the editor.
 entrypoint = "README.md"
@@ -14,4 +14,3 @@ language = "python3"
   packageSearch = true
   # Enabled package guessing
   guessImports = false
-  
