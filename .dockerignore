@@ -10,3 +10,6 @@ tests/
 
 # ignore venv when building locally
 venv/
+
+data/
+sample.env
