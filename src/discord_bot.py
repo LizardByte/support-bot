@@ -53,6 +53,13 @@ async def on_ready():
 
     bot.add_view(DonateCommandView())  # register view for persistent listening
 
+    # try to force sync commands
+    # calling an outdated command seems to force a sync
+    await bot.sync_commands(
+        commands=bot.commands,
+        force=True,
+    )
+
     try:
         os.environ['DAILY_TASKS']
     except KeyError:
@@ -181,7 +188,7 @@ async def channel(ctx: discord.ApplicationContext,
 )
 async def donate_command(ctx: discord.ApplicationContext,
                          user: Option(
-                             input_type=discord.Member,
+                             discord.Member,
                              description=user_mention_desc,
                              required=False)
                          ):
@@ -210,7 +217,7 @@ async def donate_command(ctx: discord.ApplicationContext,
 )
 async def random_command(ctx: discord.ApplicationContext,
                          user: Option(
-                             input_type=discord.Member,
+                             discord.Member,
                              description=user_mention_desc,
                              required=False)
                          ):
@@ -258,7 +265,7 @@ async def random_command(ctx: discord.ApplicationContext,
 )
 async def docs_command(ctx: discord.ApplicationContext,
                        user: Option(
-                           input_type=discord.Member,
+                           discord.Member,
                            description=user_mention_desc,
                            required=False)
                        ):
@@ -300,7 +307,7 @@ async def docs_command(ctx: discord.ApplicationContext,
 )
 async def refund_command(ctx: discord.ApplicationContext,
                          user: Option(
-                             input_type=discord.Member,
+                             discord.Member,
                              description=user_mention_desc,
                              required=False)
                          ):
