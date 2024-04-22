@@ -44,4 +44,4 @@ WORKDIR /app/
 COPY . .
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "./src/main.py"]
+CMD ["python", "-m", "src"]

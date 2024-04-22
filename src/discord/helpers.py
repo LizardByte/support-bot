@@ -1,5 +1,5 @@
 # standard imports
-from typing import Union
+from typing import Any
 
 # lib imports
 import requests
@@ -21,7 +21,7 @@ month_dictionary = {
 }
 
 
-def igdb_authorization(client_id: str, client_secret: str) -> dict:
+def igdb_authorization(client_id: str, client_secret: str) -> Any:
     """
     Authorization for IGDB.
 
@@ -36,7 +36,7 @@ def igdb_authorization(client_id: str, client_secret: str) -> dict:
 
     Returns
     -------
-    dict
+    Any
         Authorization dictionary.
     """
     grant_type = 'client_credentials'
@@ -54,7 +54,7 @@ def igdb_authorization(client_id: str, client_secret: str) -> dict:
     return authorization
 
 
-def get_json(url: str) -> Union[dict, list]:
+def get_json(url: str) -> Any:
     """
     Make a GET request and get the response in json.
 
@@ -67,7 +67,7 @@ def get_json(url: str) -> Union[dict, list]:
 
     Returns
     -------
-    any
+    Any
         The json response.
     """
     res = requests.get(url=url)
@@ -76,9 +76,9 @@ def get_json(url: str) -> Union[dict, list]:
     return data
 
 
-def post_json(url: str, headers: dict) -> Union[dict, list]:
+def post_json(url: str, headers: dict) -> Any:
     """
-    Make a POST request and get response in json.
+    Make a POST request and get the response in json.
 
     Makes a POST request with given headers to the given url.
 
@@ -91,7 +91,7 @@ def post_json(url: str, headers: dict) -> Union[dict, list]:
 
     Returns
     -------
-    any
+    Any
         The json response.
     """
     result = requests.post(url=url, data=headers).json()
