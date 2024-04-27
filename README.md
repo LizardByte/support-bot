@@ -1,4 +1,7 @@
 # support-bot
+[![GitHub Workflow Status (CI)](https://img.shields.io/github/actions/workflow/status/lizardbyte/support-bot/ci.yml.svg?branch=master&label=CI%20build&logo=github&style=for-the-badge)](https://github.com/LizardByte/support-bot/actions/workflows/ci.yml?query=branch%3Amaster)
+[![Codecov](https://img.shields.io/codecov/c/gh/LizardByte/support-bot.svg?token=900Q93P1DE&style=for-the-badge&logo=codecov&label=codecov)](https://app.codecov.io/gh/LizardByte/support-bot)
+
 Support bot written in python to help manage LizardByte communities. The current focus is discord and reddit, but other
 platforms such as GitHub discussions/issues could be added.
 
@@ -41,7 +44,7 @@ platforms such as GitHub discussions/issues could be added.
 | IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
 
 * Running bot:
-  * `python ./src/main.py`
+  * `python -m src`
 * Invite bot to server:
   * `https://discord.com/api/oauth2/authorize?client_id=<the client id of the bot>&permissions=8&scope=bot%20applications.commands`
 
@@ -66,9 +69,9 @@ platforms such as GitHub discussions/issues could be added.
 
 * First run (or manually get a new refresh token):
   * Delete `./data/refresh_token` file if needed
-  * `python ./src/main.py`
+  * `python -m src`
   * Open browser and login to reddit account to use with bot
   * Navigate to URL printed in console and accept
   * `./data/refresh_token` file is written
 * Running after refresh_token already obtained:
-  * `python ./src/main.py`
+  * `python -m src`

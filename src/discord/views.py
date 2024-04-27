@@ -9,10 +9,9 @@ from discord.ui.button import Button
 import requests
 
 # local imports
-from discord_avatar import avatar
-from discord_constants import bot_name
-from discord_helpers import get_json
-from discord_modals import RefundModal
+from src.common import avatar, bot_name
+from src.discord.helpers import get_json
+from src.discord.modals import RefundModal
 
 
 class DocsCommandDefaultProjects:
