@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 # artifacts: false
 # platforms: linux/amd64
-FROM python:3.11.3-slim-bullseye
+FROM python:3.11-slim-bookworm
 
 # Basic config
 ARG DAILY_TASKS=true
@@ -36,6 +36,18 @@ ENV PRAW_SUBREDDIT=$PRAW_SUBREDDIT
 ENV DISCORD_WEBHOOK=$DISCORD_WEBHOOK
 ENV GRAVATAR_EMAIL=$GRAVATAR_EMAIL
 ENV REDIRECT_URI=$REDIRECT_URI
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+# install dependencies
+RUN <<_DEPS
+#!/bin/bash
+set -e
+apt-get update -y
+apt-get install -y --no-install-recommends \
+  git
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+_DEPS
 
 VOLUME /data
 
