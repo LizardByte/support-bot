@@ -42,15 +42,7 @@ class Bot:
             self.redirect_uri = kwargs['redirect_uri']
 
         # directories
-        # parent directory name of this file, not full path
-        parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).split(os.sep)[-1]
-        print(f'PARENT_DIR: {parent_dir}')
-        if parent_dir == 'app':  # running in Docker container
-            self.data_dir = '/data'
-        else:  # running locally
-            self.data_dir = os.path.join(os.getcwd(), 'data')
-        print(F'DATA_DIR: {self.data_dir}')
-        os.makedirs(self.data_dir, exist_ok=True)
+        self.data_dir = common.data_dir
 
         self.last_online_file = os.path.join(self.data_dir, 'last_online')
         self.reddit = praw.Reddit(

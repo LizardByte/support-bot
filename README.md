@@ -10,13 +10,9 @@ platforms such as GitHub discussions/issues could be added.
 
 ### Discord Slash Commands
 
-| command  | description                                       | argument 1          |
-|----------|---------------------------------------------------|---------------------|
-| /help    | Return help message                               |                     |
-| /channel | Suggest to move discussion to a different channel | recommended_channel |
-| /docs    | Return the specified docs page                    | user                |
-| /donate  | Return donation links                             | user                |
-| /random  | Return a random video game quote                  |                     |
+| command  | description                                              |
+|----------|----------------------------------------------------------|
+| /help    | Return help message, for a list of all possible commands |
 
 
 ## Instructions
@@ -32,16 +28,18 @@ platforms such as GitHub discussions/issues could be added.
   :exclamation: if using Docker these can be arguments.  
   :warning: Never publicly expose your tokens, secrets, or ids.  
 
-| variable             | required | default | description                                                   |
-|----------------------|----------|---------|---------------------------------------------------------------|
-| DISCORD_BOT_TOKEN    | True     | None    | Token from Bot page on discord developer portal.              |
-| DAILY_TASKS          | False    | true    | Daily tasks on or off.                                        |
-| DAILY_RELEASES       | False    | true    | Send a message for each game released on this day in history. |
-| DAILY_CHANNEL_ID     | False    | None    | Required if daily_tasks is enabled.                           |
-| DAILY_TASKS_UTC_HOUR | False    | 12      | The hour to run daily tasks.                                  |
-| GRAVATAR_EMAIL       | False    | None    | Gravatar email address for bot avatar.                        |
-| IGDB_CLIENT_ID       | False    | None    | Required if daily_releases is enabled.                        |
-| IGDB_CLIENT_SECRET   | False    | None    | Required if daily_releases is enabled.                        |
+| variable                | required | default                                              | description                                                   |
+|-------------------------|----------|------------------------------------------------------|---------------------------------------------------------------|
+| DISCORD_BOT_TOKEN       | True     | `None`                                               | Token from Bot page on discord developer portal.              |
+| DAILY_TASKS             | False    | `true`                                               | Daily tasks on or off.                                        |
+| DAILY_RELEASES          | False    | `true`                                               | Send a message for each game released on this day in history. |
+| DAILY_CHANNEL_ID        | False    | `None`                                               | Required if daily_tasks is enabled.                           |
+| DAILY_TASKS_UTC_HOUR    | False    | `12`                                                 | The hour to run daily tasks.                                  |
+| GRAVATAR_EMAIL          | False    | `None`                                               | Gravatar email address for bot avatar.                        |
+| IGDB_CLIENT_ID          | False    | `None`                                               | Required if daily_releases is enabled.                        |
+| IGDB_CLIENT_SECRET      | False    | `None`                                               | Required if daily_releases is enabled.                        |
+| SUPPORT_COMMANDS_REPO   | False    | `https://github.com/LizardByte/support-bot-commands` | Repository for support commands.                              |
+| SUPPORT_COMMANDS_BRANCH | False    | `master`                                             | Branch for support commands.                                  |
 
 * Running bot:
   * `python -m src`
@@ -52,9 +50,7 @@ platforms such as GitHub discussions/issues could be added.
 ### Reddit
 
 * Set up an application at [reddit apps](https://www.reddit.com/prefs/apps/).
-  * The redirect uri must be publicly accessible.
-    * If using Replit, enter `https://<REPL_SLUG>.<REPL_OWNER>.repl.co`
-    * Otherwise, it is recommended to use [Nginx Proxy Manager](https://nginxproxymanager.com/) and [Duck DNS](https://www.duckdns.org/)
+  * The redirect uri should be https://localhost:8080
   * Take note of the `client_id` and `client_secret`
 * Enter the following as environment variables  
 
@@ -65,13 +61,8 @@ platforms such as GitHub discussions/issues could be added.
   | PRAW_SUBREDDIT     | True     | None    | Subreddit to monitor (reddit user should be moderator of the subreddit) |
   | DISCORD_WEBHOOK    | False    | None    | URL of webhook to send discord notifications to                         |
   | GRAVATAR_EMAIL     | False    | None    | Gravatar email address to get avatar from                               |
-  | REDIRECT_URI       | True     | None    | The redirect URI entered during the reddit application setup            |
+  | REDDIT_USERNAME    | True     | None    | Reddit username                                                         |
+* | REDDIT_PASSWORD    | True     | None    | Reddit password                                                         |
 
-* First run (or manually get a new refresh token):
-  * Delete `./data/refresh_token` file if needed
-  * `python -m src`
-  * Open browser and login to reddit account to use with bot
-  * Navigate to URL printed in console and accept
-  * `./data/refresh_token` file is written
-* Running after refresh_token already obtained:
+* Running bot:
   * `python -m src`
