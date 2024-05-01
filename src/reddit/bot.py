@@ -6,7 +6,6 @@ import shelve
 import sys
 import threading
 import time
-from typing import Optional
 
 # lib imports
 import praw
@@ -43,8 +42,14 @@ class Bot:
 
         # directories
         self.data_dir = common.data_dir
+        self.commands_dir = os.path.join(self.data_dir, "support-bot-commands", "docs")
 
-        self.last_online_file = os.path.join(self.data_dir, 'last_online')
+        # files
+        self.db = os.path.join(self.data_dir, 'reddit_bot_database')
+
+        # locks
+        self.lock = threading.Lock()
+
         self.reddit = praw.Reddit(
             client_id=os.environ['PRAW_CLIENT_ID'],
             client_secret=os.environ['PRAW_CLIENT_SECRET'],
@@ -54,6 +59,9 @@ class Bot:
             username=os.environ['REDDIT_USERNAME'],
         )
         self.subreddit = self.reddit.subreddit(self.subreddit_name)  # "AskReddit" for faster testing of submission loop
+
+        self.migrate_shelve()
+        self.migrate_last_online()
 
     @staticmethod
     def validate_env() -> bool:
@@ -70,9 +78,43 @@ class Bot:
                 return False
         return True
 
+    def migrate_last_online(self):
+        if os.path.isfile(os.path.join(self.data_dir, 'last_online')):
+            os.remove(os.path.join(self.data_dir, 'last_online'))
+
+    def migrate_shelve(self):
+        with self.lock, shelve.open(self.db) as db:
+            if 'submissions' not in db and 'comments' not in db:
+                db['comments'] = {}
+                db['submissions'] = {}
+                submissions = db['submissions']
+                for k, v in db.items():
+                    if k not in ['comments', 'submissions']:
+                        submissions[k] = v
+                        assert submissions[k] == v
+                db['submissions'] = submissions
+                keys_to_delete = [k for k in db if k not in ['comments', 'submissions']]
+                for k in keys_to_delete:
+                    del db[k]
+                    assert k not in db
+
     def process_comment(self, comment: models.Comment):
-        # todo
-        pass
+        with self.lock, shelve.open(self.db) as db:
+            comments = db.get('comments', {})
+            if comment.id in comments and comments[comment.id].get('processed', False):
+                return
+
+            comments[comment.id] = {
+                'author': str(comment.author),
+                'body': comment.body,
+                'created_utc': comment.created_utc,
+                'processed': True,
+                'slash_command': {'project': None, 'command': None},
+            }
+            # the shelve doesn't update unless we recreate the main key
+            db['comments'] = comments
+
+        self.slash_commands(comment=comment)
 
     def process_submission(self, submission: models.Submission):
         """
@@ -83,44 +125,28 @@ class Bot:
         submission : praw.models.Submission
             The submission to process.
         """
-        last_online = self.get_last_online()
+        with self.lock, shelve.open(self.db) as db:
+            submissions = db.get('submissions', {})
+            if submission.id not in submissions:
+                submissions[submission.id] = {}
+                submission_exists = False
+            else:
+                submission_exists = True
 
-        if last_online < submission.created_utc:
+            # the shelve doesn't update unless we recreate the main key
+            submissions[submission.id].update(vars(submission))
+            db['submissions'] = submissions
+
+        if not submission_exists:
             print(f'submission id: {submission.id}')
             print(f'submission title: {submission.title}')
             print('---------')
+            if os.getenv('DISCORD_WEBHOOK'):
+                self.discord(submission=submission)
+            self.flair(submission=submission)
+            self.karma(submission=submission)
 
-            with shelve.open(os.path.join(self.data_dir, 'reddit_bot_database')) as db:
-                try:
-                    db[submission.id]
-                except KeyError:
-                    submission_exists = False
-                    db[submission.id] = vars(submission)
-                else:
-                    submission_exists = True
-
-                if submission_exists:
-                    for k, v in vars(submission).items():  # update the database with current values
-                        try:
-                            if db[submission.id][k] != v:
-                                db[submission.id][k] = v
-                        except KeyError:
-                            db[submission.id][k] = v
-
-                else:
-                    try:
-                        os.environ['DISCORD_WEBHOOK']
-                    except KeyError:
-                        pass
-                    else:
-                        db = self.discord(db=db, submission=submission)
-                    db = self.flair(db=db, submission=submission)
-                    db = self.karma(db=db, submission=submission)
-
-        # re-write the last online time
-        self.last_online_writer()
-
-    def discord(self, db: shelve.Shelf, submission: models.Submission) -> Optional[shelve.Shelf]:
+    def discord(self, submission: models.Submission):
         """
         Send a discord message.
 
@@ -180,54 +206,45 @@ class Bot:
         r = requests.post(os.environ['DISCORD_WEBHOOK'], json=discord_webhook)
 
         if r.status_code == 204:  # successful completion of request, no additional content
-            # update the database
-            db[submission.id]['bot_discord'] = {'sent': True, 'sent_utc': int(time.time())}
+            with self.lock, shelve.open(self.db) as db:
+                # the shelve doesn't update unless we recreate the main key
+                submissions = db['submissions']
+                submissions[submission.id]['bot_discord'] = {'sent': True, 'sent_utc': int(time.time())}
+                db['submissions'] = submissions
 
-        return db
-
-    def flair(self, db: shelve.Shelf, submission: models.Submission) -> shelve.Shelf:
+    def flair(self, submission: models.Submission):
         # todo
-        return db
+        pass
 
-    def karma(self, db: shelve.Shelf, submission: models.Submission) -> shelve.Shelf:
+    def karma(self, submission: models.Submission):
         # todo
-        return db
+        pass
 
-    def commands(self, db: shelve.Shelf, submission: models.Submission) -> shelve.Shelf:
-        # todo
-        return db
+    def slash_commands(self, comment: models.Comment):
+        if comment.body.startswith("/"):
+            print(f"Processing slash command: {comment.body}")
+            # Split the comment into project and command
+            parts = comment.body[1:].split()
+            project = parts[0]
+            command = parts[1] if len(parts) > 1 else None
 
-    def last_online_writer(self) -> int:
-        """
-        Write the current time to the last online file.
+            # Check if the command file exists in self.commands_dir
+            command_file = os.path.join(self.commands_dir, project, f"{command}.md") if command else None
+            if command_file and os.path.isfile(command_file):
+                # Open the markdown file and read its contents
+                with open(command_file, 'r', encoding='utf-8') as file:
+                    file_contents = file.read()
 
-        Returns
-        -------
-        int
-            The current time.
-        """
-        last_online = int(time.time())
-        with open(self.last_online_file, 'w') as f:
-            f.write(str(last_online))
-
-        return last_online
-
-    def get_last_online(self) -> int:
-        """
-        Get the last online time.
-
-        Returns
-        -------
-        int
-            The last online time.
-        """
-        try:
-            with open(self.last_online_file, 'r') as f:
-                last_online = int(f.read())
-        except FileNotFoundError:
-            last_online = self.last_online_writer()
-
-        return last_online
+                # Reply to the comment with the contents of the file
+                comment.reply(file_contents)
+            else:
+                # Log error message
+                print(f"Unknown command: {command} in project: {project}")
+            with self.lock, shelve.open(self.db) as db:
+                # the shelve doesn't update unless we recreate the main key
+                comments = db['comments']
+                comments[comment.id]['slash_command'] = {'project': project, 'command': command}
+                db['comments'] = comments
 
     def _comment_loop(self, test: bool = False):
         # process comments and then keep monitoring
