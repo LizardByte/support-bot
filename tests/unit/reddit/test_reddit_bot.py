@@ -3,10 +3,11 @@
 
 # standard imports
 from base64 import b64encode
+import inspect
 import json
 import os
-import unittest
-from unittest.mock import patch, MagicMock
+import shelve
+from unittest.mock import patch
 from urllib.parse import quote_plus
 
 # lib imports
@@ -14,7 +15,6 @@ from betamax import Betamax, cassette
 from betamax_serializers.pretty_json import PrettyJSONSerializer
 from praw.config import _NotSet
 import pytest
-from praw.models import Submission, Comment
 
 # local imports
 from src.reddit.bot import Bot
@@ -142,6 +142,22 @@ class TestBot:
     def recorder(self, session):
         return Betamax(session)
 
+    @pytest.fixture(scope='session')
+    def slash_command_comment(self, bot, recorder):
+        comment = bot.reddit.comment(id='l20s21b')
+        with recorder.use_cassette(f'fixture_{inspect.currentframe().f_code.co_name}'):
+            assert comment.body == '/sunshine vban'
+
+        return comment
+
+    @pytest.fixture(scope='session')
+    def _submission(self, bot, recorder):
+        s = bot.reddit.submission(id='w03cku')
+        with recorder.use_cassette(f'fixture_{inspect.currentframe().f_code.co_name}'):
+            assert s.author
+
+        return s
+
     def test_validate_env(self, bot):
         with patch.dict(
                 os.environ, {
@@ -153,32 +169,44 @@ class TestBot:
                 }):
             assert bot.validate_env()
 
-    def test_process_comment(self, bot):
-        comment = MagicMock(spec=Comment)
-        with patch.object(bot, 'process_comment') as mock_process_comment:
-            bot.process_comment(comment)
-            mock_process_comment.assert_called_once_with(comment)
+    def test_migrate_shelve(self, bot):
+        with patch.object(shelve, 'open') as mock_open:
+            bot.migrate_shelve()
+            mock_open.assert_called_once_with(bot.db)
+        with shelve.open(bot.db) as db:
+            assert db.get('comments') is not None
+            assert db.get('submissions') is not None
 
-    def test_process_submission(self, bot):
-        submission = MagicMock(spec=Submission)
-        with patch.object(bot, 'process_submission') as mock_process_submission:
-            bot.process_submission(submission)
-            mock_process_submission.assert_called_once_with(submission)
+    def test_migrate_last_online(self, bot):
+        f = os.path.join(bot.data_dir, 'last_online')
+        if not os.path.isfile(f):
+            with open(f, 'w') as file:
+                file.write('1234')
+        assert os.path.isfile(f)
 
-    def test_last_online_writer(self, bot):
-        with patch('builtins.open', unittest.mock.mock_open()) as mock_file:
-            bot.last_online_writer()
-            mock_file.assert_called_once_with(bot.last_online_file, 'w')
+        bot.migrate_last_online()
+        assert not os.path.isfile(f)
 
-    def test_get_last_online(self, bot):
-        with patch('builtins.open', unittest.mock.mock_open(read_data='1234567890')) as mock_file:
-            assert bot.get_last_online() == 1234567890
-            mock_file.assert_called_once_with(bot.last_online_file, 'r')
-
-    def test_submission(self, bot, recorder, request):
-        submission = bot.reddit.submission(id='w03cku')
+    def test_process_comment(self, bot, recorder, request, slash_command_comment):
         with recorder.use_cassette(request.node.name):
-            assert submission.author
+            bot.process_comment(comment=slash_command_comment)
+        with bot.lock, shelve.open(bot.db) as db:
+            assert slash_command_comment.id in db['comments']
+            assert db['comments'][slash_command_comment.id]['author'] == str(slash_command_comment.author)
+            assert db['comments'][slash_command_comment.id]['body'] == slash_command_comment.body
+            assert db['comments'][slash_command_comment.id]['processed']
+            assert db['comments'][slash_command_comment.id]['slash_command']['project'] == 'sunshine'
+            assert db['comments'][slash_command_comment.id]['slash_command']['command'] == 'vban'
+
+    def test_process_submission(self, bot, recorder, request, _submission):
+        with recorder.use_cassette(request.node.name):
+            bot.process_submission(submission=_submission)
+        with bot.lock, shelve.open(bot.db) as db:
+            assert _submission.id in db['submissions']
+            assert db['submissions'][_submission.id]['author'] == str(_submission.author)
+            assert db['submissions'][_submission.id]['title'] == _submission.title
+            assert db['submissions'][_submission.id]['bot_discord']['sent'] is True
+            assert db['submissions'][_submission.id]['bot_discord']['sent_utc']
 
     def test_comment_loop(self, bot, recorder, request):
         with recorder.use_cassette(request.node.name):
