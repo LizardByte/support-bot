@@ -1,5 +1,5 @@
 betamax==0.9.0
 betamax-serializers==0.2.1
-pytest==8.1.1
+pytest==8.2.0
 pytest-asyncio==0.23.6
 pytest-cov==5.0.0
