@@ -38,7 +38,7 @@ def get_avatar_bytes():
 
 def get_data_dir():
     # parent directory name of this file, not full path
-    parent_dir = os.path.dirname(os.path.abspath(__file__)).split(os.sep)[-1]
+    parent_dir = os.path.dirname(os.path.abspath(__file__)).split(os.sep)[-2]
     if parent_dir == 'app':  # running in Docker container
         d = '/data'
     else:  # running locally
