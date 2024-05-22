@@ -9,18 +9,28 @@ on:
     branches: [master]
   workflow_dispatch:
 
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Setup Release
+        id: setup_release
+        uses: LizardByte/setup-release-action@v2024.520.193857
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: "3.11"
 
       - name: Install Python Dependencies
         run: |
@@ -59,24 +69,17 @@ jobs:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Setup Release
-        id: setup_release
-        uses: LizardByte/setup-release-action@v2024.419.10846
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create/Update GitHub Release
         if: >-
           (github.event_name == 'push' && github.ref == 'refs/heads/master') &&
           steps.setup_release.outputs.publish_release == 'true'
-        uses: LizardByte/create-release-action@v2023.1219.224026
+        uses: LizardByte/create-release-action@v2024.520.193838
         with:
           allowUpdates: true
           artifacts: ""
-          body: ''
           discussionCategory: announcements
           generateReleaseNotes: true
           name: ${{ steps.setup_release.outputs.release_tag }}
-          prerelease: ${{ steps.setup_release.outputs.publish_pre_release }}
+          prerelease: true
           tag: ${{ steps.setup_release.outputs.release_tag }}
           token: ${{ secrets.GH_BOT_TOKEN }}
