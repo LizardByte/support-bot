@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 # artifacts: false
 # platforms: linux/amd64
-FROM python:3.11-slim-bookworm
+FROM python:3.12-slim-bookworm
 
 # Basic config
 ARG DAILY_TASKS=true
