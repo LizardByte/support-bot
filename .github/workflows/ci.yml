@@ -73,7 +73,7 @@ jobs:
         if: >-
           (github.event_name == 'push' && github.ref == 'refs/heads/master') &&
           steps.setup-release.outputs.publish_release == 'true'
-        uses: LizardByte/create-release-action@v2024.609.5014
+        uses: LizardByte/create-release-action@v2024.611.132610
         with:
           allowUpdates: true
           artifacts: ''
