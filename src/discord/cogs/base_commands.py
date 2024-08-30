@@ -3,7 +3,7 @@ import discord
 from discord.commands import Option
 
 # local imports
-from src.common import avatar, bot_name, org_name
+from src.common import avatar, bot_name, org_name, version
 from src.discord.views import DonateCommandView
 from src.discord import cogs_common
 
@@ -36,6 +36,8 @@ class BaseCommandsCog(discord.Cog):
                     description += await self.get_command_help(ctx=ctx, cmd=sub_cmd, group_name=cmd.name)
             else:
                 description += await self.get_command_help(ctx=ctx, cmd=cmd)
+
+        description += f"\n\nVersion: {version}\n"
 
         embed = discord.Embed(description=description, color=0xE5A00D)
         embed.set_footer(text=bot_name, icon_url=avatar)
