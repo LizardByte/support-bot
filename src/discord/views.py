@@ -2,11 +2,9 @@
 from typing import Tuple
 
 # lib imports
-from bs4 import BeautifulSoup
 import discord
 from discord.ui.select import Select
 from discord.ui.button import Button
-import requests
 
 # local imports
 from src.common import avatar, bot_name
@@ -26,7 +24,7 @@ class DocsCommandDefaultProjects:
         A list of `discord.SelectOption` objects.
     """
     def __init__(self):
-        self.projects = get_json(url='https://app.lizardbyte.dev/uno/readthedocs/projects.json')
+        self.projects = get_json(url='https://app.lizardbyte.dev/dashboard/readthedocs/projects.json')
         self.projects_options = []
         for project in self.projects:
             try:
@@ -53,24 +51,6 @@ class DocsCommandView(discord.ui.View):
         The project name.
     self.docs_version : str
         The url to the documentation of the selected version.
-    self.docs_category : str
-        The name of the selected category.
-    self.docs_page : str
-        The name of the selected page.
-    self.docs_section : str
-        The name of the selected section.
-    self.html : bytes
-        Content of `requests.get()` in bytes.
-    self.soup : bs4.BeautifulSoup
-        BeautifulSoup object of `self.html`
-    self.toc : ResultSet
-        Docs table of contents.
-    self.categories : list
-        A list of Docs categories.
-    self.pages : list
-        A list of pages for the selected category.
-    self.sections : list
-        A list of sections for the selected page.
     """
     def __init__(self, ctx: discord.ApplicationContext):
         super().__init__(timeout=45)
@@ -81,17 +61,6 @@ class DocsCommandView(discord.ui.View):
         # final values
         self.docs_project = None
         self.docs_version = None
-        self.docs_category = None
-        self.docs_page = None
-        self.docs_section = None
-
-        # intermediate values
-        self.html = None
-        self.soup = None
-        self.toc = None
-        self.categories = None
-        self.pages = None
-        self.sections = None
 
         # reset the first select menu because it remembers the last selected value
         self.children[0].options = DocsCommandDefaultProjects().projects_options
@@ -112,20 +81,15 @@ class DocsCommandView(discord.ui.View):
         embed = discord.Embed()
         embed.set_footer(text=bot_name, icon_url=avatar)
 
-        url = f'{self.docs_version}{self.docs_section}'
+        url = self.docs_version
 
         if self.docs_project and self.docs_version:  # the project and version are selected
-            if self.docs_category is not None:  # category has a value, which may be ""
-                if self.docs_category:  # category is selected, so the next item must not be blank
-                    if self.docs_page is not None and self.docs_section is not None:  # info is complete
-                        complete = True
-                else:  # info is complete IF category is ""
-                    complete = True
+            complete = True
 
         if complete:
-            embed.title = f'{self.docs_project} | {self.docs_category}' if self.docs_category else self.docs_project
+            embed.title = self.docs_project
             embed.description = f'The selected docs are available at {url}'
-            embed.color = 0x39FF14  # PyCharm complains that the color is read only, but this works anyway
+            embed.color = 0x39FF14
             embed.url = url
         else:
             # info is not complete
@@ -214,7 +178,7 @@ class DocsCommandView(discord.ui.View):
                         readthedocs = self.children[0].values[0]
 
                         versions = get_json(
-                            url=f'https://app.lizardbyte.dev/uno/readthedocs/versions/{readthedocs}.json')
+                            url=f'https://app.lizardbyte.dev/dashboard/readthedocs/versions/{readthedocs}.json')
 
                         options = []
                         for version in versions:
@@ -224,83 +188,6 @@ class DocsCommandView(discord.ui.View):
                                     value=version['urls']['documentation'],
                                     description=f"Docs for {version['slug']} {version['type']}"
                                 ))
-
-                        child.options = options
-
-                    if child == self.children[2]:  # choose the docs category
-                        url = self.children[1].values[0]
-
-                        self.html = requests.get(url=url).content
-                        self.soup = BeautifulSoup(self.html, 'html.parser')
-
-                        self.toc = self.soup.select("div[class*=toctree-wrapper]")
-
-                        self.categories = []
-                        for item in self.toc:
-                            self.categories.extend(item.select("p[role=heading]"))
-
-                        options = [discord.SelectOption(label='None')]
-                        for category in self.categories:
-
-                            options.append(discord.SelectOption(
-                                label=category.string
-                            ))
-
-                        child.options = options
-
-                    if child == self.children[3]:  # choose the docs page
-                        category_value = self.children[2].values[0]
-
-                        for category in self.categories:
-                            if category.string == category_value:
-                                category_section = self.toc[self.categories.index(category)]
-
-                                page_sections = category_section.findChild('ul')
-                                self.sections = page_sections.find_all('li', class_="toctree-l1")
-
-                                break
-
-                        options = []
-                        self.pages = []
-                        if category_value == 'None':
-                            options.append(discord.SelectOption(label='None', value=category_value, default=True))
-
-                            # enable the final menu
-                            self.children[-1].disabled = False
-                            self.children[-1].options = options
-                        else:
-                            for section in self.sections:
-                                page = section.findNext('a')
-                                self.pages.append(page)
-
-                                options.append(discord.SelectOption(
-                                    label=page.string,
-                                    value=page['href']
-                                ))
-
-                        child.options = options
-
-                        if category_value == 'None':
-                            break
-
-                    if child == self.children[4]:  # choose the docs page section
-                        page_value = self.children[3].values[0]
-
-                        if page_value == 'None':
-                            options = [discord.SelectOption(label='None', value=page_value, default=True)]
-                        else:
-                            options = [discord.SelectOption(label='None', value=page_value)]
-                            for section in self.sections:
-                                page = section.findNext('a')
-                                if page_value == page['href']:
-                                    page_sections = section.find_all('a')
-                                    del page_sections[0]  # delete first item from list
-
-                                    for page_section in page_sections:
-                                        options.append(discord.SelectOption(
-                                            label=page_section.string,
-                                            value=page_section['href']
-                                        ))
 
                         child.options = options
 
@@ -316,32 +203,14 @@ class DocsCommandView(discord.ui.View):
         # reset values
         try:
             self.docs_project = self.children[0].values[0]
-            self.docs_version = self.children[1].values[0]
-
-            if self.children[2].values[0] == 'None':
-                self.docs_category = ''
-                self.docs_page = ''
-                self.docs_section = ''
+            if self.children[1].values:
+                self.docs_version = self.children[1].values[0]
             else:
-                self.docs_category = self.children[2].values[0]
-                self.docs_page = self.children[3].values[0] if self.children[3].values[0] != 'None' else ''
-                self.docs_section = self.children[4].values[0] if self.children[4].values[0] != 'None' else ''
+                self.docs_version = None
         except IndexError:
             pass
         if select == self.children[0]:  # chose the docs project
             self.docs_version = None
-            self.docs_category = None
-            self.docs_page = None
-            self.docs_section = None
-        elif select == self.children[1]:  # chose the docs version
-            self.docs_category = None
-            self.docs_page = None
-            self.docs_section = None
-        elif select == self.children[2]:  # chose the docs category
-            self.docs_page = None if self.children[2].values[0] != 'None' else ''
-            self.docs_section = None if self.children[2].values[0] != 'None' else ''
-        elif select == self.children[3]:  # chose the docs page
-            self.docs_section = None
 
         complete, embed = self.check_completion_status()
 
@@ -365,36 +234,6 @@ class DocsCommandView(discord.ui.View):
         options=[discord.SelectOption(label='error')]
     )
     async def version_callback(self, select: Select, interaction: discord.Interaction):
-        await self.callback(select=select, interaction=interaction)
-
-    @discord.ui.select(
-        placeholder="Choose category...",
-        disabled=True,
-        min_values=1,
-        max_values=1,
-        options=[discord.SelectOption(label='error')]
-    )
-    async def category_callback(self, select: Select, interaction: discord.Interaction):
-        await self.callback(select=select, interaction=interaction)
-
-    @discord.ui.select(
-        placeholder="Choose page...",
-        disabled=True,
-        min_values=1,
-        max_values=1,
-        options=[discord.SelectOption(label='error')]
-    )
-    async def page_callback(self, select: Select, interaction: discord.Interaction):
-        await self.callback(select=select, interaction=interaction)
-
-    @discord.ui.select(
-        placeholder="Choose section...",
-        disabled=True,
-        min_values=1,
-        max_values=1,
-        options=[discord.SelectOption(label='error')]
-    )
-    async def section_callback(self, select: Select, interaction: discord.Interaction):
         await self.callback(select=select, interaction=interaction)
 
 
