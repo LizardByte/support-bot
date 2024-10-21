@@ -3,7 +3,7 @@ GitPython==3.1.43
 igdb-api-v4==0.3.3
 libgravatar==1.0.4
 mistletoe==1.4.0
-praw==7.7.1
+praw==7.8.0
 py-cord==2.6.1
 python-dotenv==1.0.1
 requests==2.32.3
