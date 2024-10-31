@@ -254,10 +254,6 @@ class DonateCommandView(discord.ui.View):
                 name='GitHub',
                 url='https://github.com/sponsors/LizardByte'
             ),
-            mee6=dict(
-                name='MEE6',
-                url='https://mee6.xyz/m/804382334370578482'
-            ),
             patreon=dict(
                 name='Patreon',
                 url='https://www.patreon.com/LizardByte'
