@@ -41,10 +41,16 @@ jobs:
       - name: Test with pytest
         id: test
         env:
+          CI_EVENT_ID: ${{ github.event.number || github.sha }}
           GITHUB_PYTEST: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_TEST_BOT_TOKEN }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_TEST_BOT_WEBHOOK }}
+          DISCORD_GITHUB_STATUS_CHANNEL_ID: ${{ vars.DISCORD_GITHUB_STATUS_CHANNEL_ID }}
+          DISCORD_REDDIT_CHANNEL_ID: ${{ vars.DISCORD_REDDIT_CHANNEL_ID }}
+          DISCORD_SPONSORS_CHANNEL_ID: ${{ vars.DISCORD_SPONSORS_CHANNEL_ID }}
           GRAVATAR_EMAIL: ${{ secrets.GRAVATAR_EMAIL }}
+          IGDB_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          IGDB_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           PRAW_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           PRAW_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}

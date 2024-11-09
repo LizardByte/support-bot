@@ -161,7 +161,7 @@ class TestBot:
     def test_validate_env(self, bot):
         with patch.dict(
                 os.environ, {
-                    "DISCORD_WEBHOOK": "test",
+                    "DISCORD_REDDIT_CHANNEL_ID": "test",
                     "PRAW_CLIENT_ID": "test",
                     "PRAW_CLIENT_SECRET": "test",
                     "REDDIT_PASSWORD": "test",
@@ -198,7 +198,7 @@ class TestBot:
             assert db['comments'][slash_command_comment.id]['slash_command']['project'] == 'sunshine'
             assert db['comments'][slash_command_comment.id]['slash_command']['command'] == 'vban'
 
-    def test_process_submission(self, bot, recorder, request, _submission):
+    def test_process_submission(self, bot, discord_bot, recorder, request, _submission):
         with recorder.use_cassette(request.node.name):
             bot.process_submission(submission=_submission)
         with bot.lock, shelve.open(bot.db) as db:
@@ -213,7 +213,7 @@ class TestBot:
             comment = bot._comment_loop(test=True)
             assert comment.author
 
-    def test_submission_loop(self, bot, recorder, request):
+    def test_submission_loop(self, bot, discord_bot, recorder, request):
         with recorder.use_cassette(request.node.name):
             submission = bot._submission_loop(test=True)
             assert submission.author

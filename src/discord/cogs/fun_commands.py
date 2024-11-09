@@ -7,7 +7,7 @@ from discord.commands import Option
 import requests
 
 # local imports
-from src.common import avatar, bot_name
+from src.common.common import avatar, bot_name, colors
 from src.discord.views import RefundCommandView
 from src.discord import cogs_common
 
@@ -56,7 +56,7 @@ class FunCommandsCog(discord.Cog):
         else:
             description = None
 
-        embed = discord.Embed(title=quote, description=description, color=0x00ff00)
+        embed = discord.Embed(title=quote, description=description, color=colors['green'])
         embed.set_footer(text=bot_name, icon_url=avatar)
 
         if user:
@@ -91,7 +91,7 @@ class FunCommandsCog(discord.Cog):
         embed = discord.Embed(title="Refund request",
                               description="Original purchase price: $0.00\n\n"
                                           "Select the button below to request a full refund!",
-                              color=0xDC143C)
+                              color=colors['red'])
         embed.set_footer(text=bot_name, icon_url=avatar)
 
         if user:
