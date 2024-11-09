@@ -7,7 +7,7 @@ import discord
 from discord.commands import Option
 
 # local imports
-from src.common import avatar, bot_name
+from src.common.common import avatar, bot_name, colors
 
 # constants
 recommended_channel_desc = 'Select the recommended channel'  # hack for flake8 F722
@@ -56,7 +56,7 @@ class ModeratorCommandsCog(discord.Cog):
         embed = discord.Embed(
             title="Incorrect channel",
             description=f"Please move discussion to {recommended_channel.mention}",
-            color=0x00ff00,
+            color=colors['orange'],
         )
 
         permission_ch_id = ''

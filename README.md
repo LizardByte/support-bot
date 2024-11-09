@@ -2,8 +2,8 @@
 [![GitHub Workflow Status (CI)](https://img.shields.io/github/actions/workflow/status/lizardbyte/support-bot/ci.yml.svg?branch=master&label=CI%20build&logo=github&style=for-the-badge)](https://github.com/LizardByte/support-bot/actions/workflows/ci.yml?query=branch%3Amaster)
 [![Codecov](https://img.shields.io/codecov/c/gh/LizardByte/support-bot.svg?token=900Q93P1DE&style=for-the-badge&logo=codecov&label=codecov)](https://app.codecov.io/gh/LizardByte/support-bot)
 
-Support bot written in python to help manage LizardByte communities. The current focus is discord and reddit, but other
-platforms such as GitHub discussions/issues could be added.
+Support bot written in python to help manage LizardByte communities. The current focus is Discord and Reddit, but other
+platforms such as GitHub discussions/issues might be added in the future.
 
 
 ## Overview
@@ -28,23 +28,25 @@ platforms such as GitHub discussions/issues could be added.
   :exclamation: if using Docker these can be arguments.  
   :warning: Never publicly expose your tokens, secrets, or ids.  
 
-| variable                | required | default                                              | description                                                   |
-|-------------------------|----------|------------------------------------------------------|---------------------------------------------------------------|
-| DISCORD_BOT_TOKEN       | True     | `None`                                               | Token from Bot page on discord developer portal.              |
-| DAILY_TASKS             | False    | `true`                                               | Daily tasks on or off.                                        |
-| DAILY_RELEASES          | False    | `true`                                               | Send a message for each game released on this day in history. |
-| DAILY_CHANNEL_ID        | False    | `None`                                               | Required if daily_tasks is enabled.                           |
-| DAILY_TASKS_UTC_HOUR    | False    | `12`                                                 | The hour to run daily tasks.                                  |
-| GRAVATAR_EMAIL          | False    | `None`                                               | Gravatar email address for bot avatar.                        |
-| IGDB_CLIENT_ID          | False    | `None`                                               | Required if daily_releases is enabled.                        |
-| IGDB_CLIENT_SECRET      | False    | `None`                                               | Required if daily_releases is enabled.                        |
-| SUPPORT_COMMANDS_REPO   | False    | `https://github.com/LizardByte/support-bot-commands` | Repository for support commands.                              |
-| SUPPORT_COMMANDS_BRANCH | False    | `master`                                             | Branch for support commands.                                  |
-
-* Running bot:
-  * `python -m src`
-* Invite bot to server:
-  * `https://discord.com/api/oauth2/authorize?client_id=<the client id of the bot>&permissions=8&scope=bot%20applications.commands`
+| variable                         | required | default                                              | description                                                   |
+|----------------------------------|----------|------------------------------------------------------|---------------------------------------------------------------|
+| DISCORD_BOT_TOKEN                | True     | `None`                                               | Token from Bot page on discord developer portal.              |
+| DISCORD_CLIENT_ID                | True     | `None`                                               | Discord OAuth2 client id.                                     |
+| DISCORD_CLIENT_SECRET            | True     | `None`                                               | Discord OAuth2 client secret.                                 |
+| DISCORD_GITHUB_STATUS_CHANNEL_ID | True     | `None`                                               | Channel ID to send GitHub status updates to.                  |
+| DISCORD_REDDIT_CHANNEL_ID        | True     | `None`                                               | Channel ID to send Reddit post updates to.                    |
+| DISCORD_REDIRECT_URI             | False    | `https://localhost:8080/discord/callback`            | The redirect uri for OAuth2. Must be publicly accessible.     |
+| DISCORD_SPONSORS_CHANNEL_ID      | True     | `None`                                               | Channel ID to send sponsorship updates to.                    |
+| GITHUB_WEBHOOK_SECRET_KEY        | True     | `None`                                               | A secret value to ensure webhooks are from trusted sources.   |
+| DAILY_TASKS                      | False    | `true`                                               | Daily tasks on or off.                                        |
+| DAILY_RELEASES                   | False    | `true`                                               | Send a message for each game released on this day in history. |
+| DAILY_CHANNEL_ID                 | False    | `None`                                               | Required if daily_tasks is enabled.                           |
+| DAILY_TASKS_UTC_HOUR             | False    | `12`                                                 | The hour to run daily tasks.                                  |
+| GRAVATAR_EMAIL                   | False    | `None`                                               | Gravatar email address for bot avatar.                        |
+| IGDB_CLIENT_ID                   | False    | `None`                                               | Required if daily_releases is enabled.                        |
+| IGDB_CLIENT_SECRET               | False    | `None`                                               | Required if daily_releases is enabled.                        |
+| SUPPORT_COMMANDS_REPO            | False    | `https://github.com/LizardByte/support-bot-commands` | Repository for support commands.                              |
+| SUPPORT_COMMANDS_BRANCH          | False    | `master`                                             | Branch for support commands.                                  |
 
 
 ### Reddit
@@ -62,7 +64,13 @@ platforms such as GitHub discussions/issues could be added.
   | DISCORD_WEBHOOK    | False    | None    | URL of webhook to send discord notifications to                         |
   | GRAVATAR_EMAIL     | False    | None    | Gravatar email address to get avatar from                               |
   | REDDIT_USERNAME    | True     | None    | Reddit username                                                         |
-* | REDDIT_PASSWORD    | True     | None    | Reddit password                                                         |
+  | REDDIT_PASSWORD    | True     | None    | Reddit password                                                         |
 
-* Running bot:
-  * `python -m src`
+### Start
+
+```bash
+python -m src
+```
+
+* Invite bot to server:
+  * `https://discord.com/api/oauth2/authorize?client_id=<the client id of the bot>&permissions=8&scope=bot%20applications.commands`

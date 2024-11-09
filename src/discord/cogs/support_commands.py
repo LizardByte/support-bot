@@ -11,7 +11,7 @@ import mistletoe
 from mistletoe.markdown_renderer import MarkdownRenderer
 
 # local imports
-from src.common import avatar, bot_name, data_dir
+from src.common.common import avatar, bot_name, colors, data_dir
 from src.discord.views import DocsCommandView
 from src.discord import cogs_common
 
@@ -130,7 +130,7 @@ class SupportCommandsCog(discord.Cog):
                               f"{project}/{command}.md")
 
                 embed = discord.Embed(
-                    color=0xF1C232,
+                    color=colors['yellow'],
                     description=description,
                     timestamp=datetime.datetime.now(tz=datetime.timezone.utc),
                     title="See on GitHub",
@@ -165,7 +165,7 @@ class SupportCommandsCog(discord.Cog):
         user : discord.Member
             Username to mention in response.
         """
-        embed = discord.Embed(title="Select a project", color=0xF1C232)
+        embed = discord.Embed(title="Select a project", color=colors['yellow'])
         embed.set_footer(text=bot_name, icon_url=avatar)
 
         if user:
