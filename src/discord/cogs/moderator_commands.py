@@ -7,7 +7,7 @@ import discord
 from discord.commands import Option
 
 # local imports
-from src.common import avatar, bot_name
+from src.common.common import avatar, bot_name
 
 # constants
 recommended_channel_desc = 'Select the recommended channel'  # hack for flake8 F722

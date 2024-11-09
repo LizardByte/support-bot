@@ -11,7 +11,7 @@ import mistletoe
 from mistletoe.markdown_renderer import MarkdownRenderer
 
 # local imports
-from src.common import avatar, bot_name, data_dir
+from src.common.common import avatar, bot_name, data_dir
 from src.discord.views import DocsCommandView
 from src.discord import cogs_common
 

@@ -1,42 +1,38 @@
 # standard imports
 import asyncio
-
-# lib imports
-import pytest
-import pytest_asyncio
+import os
 
 # local imports
-from src import common
-from src.discord import bot as discord_bot
+from src.common import common
 
 
-@pytest_asyncio.fixture
-async def bot():
-    # event_loop fixture is deprecated
-    _loop = asyncio.get_event_loop()
-
-    bot = discord_bot.Bot(loop=_loop)
-    future = asyncio.run_coroutine_threadsafe(bot.start(token=bot.token), _loop)
-    await bot.wait_until_ready()  # Wait until the bot is ready
-    yield bot
-    bot.stop(future=future)
-
-    # wait for the bot to finish
-    counter = 0
-    while not future.done() and counter < 30:
-        await asyncio.sleep(1)
-        counter += 1
-    future.cancel()  # Cancel the bot when the tests are done
-
-
-@pytest.mark.asyncio
-async def test_bot_on_ready(bot):
-    assert bot is not None
-    assert bot.guilds
-    assert bot.guilds[0].name == "ReenigneArcher's test server"
-    assert bot.user.id == 939171917578002502
-    assert bot.user.name == common.bot_name
-    assert bot.user.avatar
+def test_bot_on_ready(discord_bot):
+    assert discord_bot is not None
+    assert discord_bot.guilds
+    assert discord_bot.guilds[0].name == "ReenigneArcher's test server"
+    assert discord_bot.user.id == 939171917578002502
+    assert discord_bot.user.name == common.bot_name
+    assert discord_bot.user.avatar
 
     # compare the bot avatar to our intended avatar
-    assert await bot.user.avatar.read() == common.get_avatar_bytes()
+    future = asyncio.run_coroutine_threadsafe(discord_bot.user.avatar.read(), discord_bot.loop)
+    assert future.result() == common.get_avatar_bytes()
+
+
+def test_send_message(discord_bot):
+    channel_id = int(os.environ['DISCORD_REDDIT_CHANNEL_ID'])
+    message = f"This is a test message from {os.getenv('CI_EVENT_ID', 'local')}."
+    embeds = []
+    msg = discord_bot.send_message(channel_id=channel_id, message=message, embeds=embeds)
+    assert msg.content == message
+    assert msg.channel.id == channel_id
+    assert msg.author.id == 939171917578002502
+    assert msg.author.name == common.bot_name
+
+    avatar_future = asyncio.run_coroutine_threadsafe(msg.author.avatar.read(), discord_bot.loop)
+    assert avatar_future.result() == common.get_avatar_bytes()
+
+    assert msg.author.display_name == common.bot_name
+    assert msg.author.discriminator == "7085"
+    assert msg.author.bot is True
+    assert msg.author.system is False

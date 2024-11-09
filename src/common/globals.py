@@ -1,0 +1,2 @@
+DISCORD_BOT = None
+REDDIT_BOT = None

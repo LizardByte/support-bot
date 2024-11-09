@@ -7,8 +7,8 @@ import threading
 import discord
 
 # local imports
-from src.common import bot_name, get_avatar_bytes, org_name
-from src.discord.tasks import daily_task
+from src.common.common import bot_name, data_dir, get_avatar_bytes, org_name
+from src.common.database import Database
 from src.discord.views import DonateCommandView
 
 
@@ -21,6 +21,9 @@ class Bot(discord.Bot):
     when the bot is ready.
     """
     def __init__(self, *args, **kwargs):
+        # tasks need to be imported here to avoid circular imports
+        from src.discord.tasks import daily_task, hourly_task
+
         if 'intents' not in kwargs:
             intents = discord.Intents.all()
             kwargs['intents'] = intents
@@ -30,6 +33,9 @@ class Bot(discord.Bot):
 
         self.bot_thread = threading.Thread(target=lambda: None)
         self.token = os.environ['DISCORD_BOT_TOKEN']
+        self.db = Database(db_path=os.path.join(data_dir, 'discord_bot_database'))
+        self.daily_task = daily_task
+        self.hourly_task = hourly_task
 
         self.load_extension(
             name='src.discord.cogs',
@@ -37,12 +43,15 @@ class Bot(discord.Bot):
             store=False,
         )
 
+        with self.db as db:
+            db['oauth_states'] = {}  # clear any oauth states from previous sessions
+
     async def on_ready(self):
         """
         Bot on ready event.
 
         This function runs when the discord bot is ready. The function will update the bot presence, update the username
-        and avatar, and start daily tasks.
+        and avatar, and start tasks.
         """
         print(f'py-cord version: {discord.__version__}')
         print(f'Logged in as {self.user.name} (ID: {self.user.id})')
@@ -61,15 +70,84 @@ class Bot(discord.Bot):
 
         await self.sync_commands()
 
+        self.hourly_task.start(bot=self)
+
         try:
             os.environ['DAILY_TASKS']
         except KeyError:
-            daily_task.start(bot=self)
+            self.daily_task.start(bot=self)
         else:
             if os.environ['DAILY_TASKS'].lower() == 'true':
-                daily_task.start(bot=self)
+                self.daily_task.start(bot=self)
             else:
                 print("'DAILY_TASKS' environment variable is disabled")
+
+    async def async_send_message(
+            self,
+            channel_id: int,
+            message: str = None,
+            embeds: list[discord.Embed] = [],
+    ) -> discord.Message:
+        """
+        Send a message to a specific channel asynchronously.
+
+        Parameters
+        ----------
+        channel_id : int
+            The ID of the channel to send the message to.
+        message : str, optional
+            The message to send.
+        embeds : list[discord.Embed], optional
+            A list of embeds to send.
+
+        Returns
+        -------
+        discord.Message
+            The message that was sent.
+        """
+        # ensure embeds are within Discord's character limits
+        for embed in embeds:
+            print(len(embed))
+            if len(embed) > 6000:
+                cut_length = len(embed) - 6000 + 3
+                embed.description = embed.description[:-cut_length] + "..."
+            if len(embed.description) > 4096:
+                cut_length = len(embed.description) - 4096 + 3
+                embed.description = embed.description[:-cut_length] + "..."
+
+        channel = await self.fetch_channel(channel_id)
+        return await channel.send(content=message, embeds=embeds)
+
+    def send_message(
+            self,
+            channel_id: int,
+            message: str = None,
+            embeds: list[discord.Embed] = [],
+    ) -> discord.Message:
+        """
+        Send a message to a specific channel synchronously.
+
+        Parameters
+        ----------
+        channel_id : int
+            The ID of the channel to send the message to.
+        message : str, optional
+            The message to send.
+        embeds : list[discord.Embed], optional
+            A list of embeds to send.
+
+        Returns
+        -------
+        discord.Message
+            The message that was sent.
+        """
+        future = asyncio.run_coroutine_threadsafe(
+            self.async_send_message(
+                channel_id=channel_id,
+                message=message,
+                embeds=embeds,
+            ), self.loop)
+        return future.result()
 
     def start_threaded(self):
         try:
@@ -85,8 +163,9 @@ class Bot(discord.Bot):
             self.stop()
 
     def stop(self, future: asyncio.Future = None):
-        print("Attempting to stop daily tasks")
-        daily_task.stop()
+        print("Attempting to stop tasks")
+        self.daily_task.stop()
+        self.hourly_task.stop()
         print("Attempting to close bot connection")
         if self.bot_thread is not None and self.bot_thread.is_alive():
             asyncio.run_coroutine_threadsafe(self.close(), self.loop)

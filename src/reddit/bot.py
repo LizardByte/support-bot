@@ -1,18 +1,19 @@
 # standard imports
 from datetime import datetime
 import os
-import requests
 import shelve
 import sys
 import threading
 import time
 
 # lib imports
+import discord
 import praw
 from praw import models
 
 # local imports
-from src import common
+from src.common import common
+from src.common import globals
 
 
 class Bot:
@@ -31,14 +32,7 @@ class Bot:
         self.user_agent = kwargs.get('user_agent', f'{common.bot_name} {self.version}')
         self.avatar = kwargs.get('avatar', common.get_bot_avatar(gravatar=os.environ['GRAVATAR_EMAIL']))
         self.subreddit_name = kwargs.get('subreddit', os.getenv('PRAW_SUBREDDIT', 'LizardByte'))
-
-        if not kwargs.get('redirect_uri', None):
-            try:  # for running in replit
-                self.redirect_uri = f'https://{os.environ["REPL_SLUG"]}.{os.environ["REPL_OWNER"].lower()}.repl.co'
-            except KeyError:
-                self.redirect_uri = os.getenv('REDIRECT_URI', 'http://localhost:8080')
-        else:
-            self.redirect_uri = kwargs['redirect_uri']
+        self.redirect_uri = kwargs.get('redirect_uri', os.getenv('REDIRECT_URI', 'http://localhost:8080'))
 
         # directories
         self.data_dir = common.data_dir
@@ -66,7 +60,7 @@ class Bot:
     @staticmethod
     def validate_env() -> bool:
         required_env = [
-            'DISCORD_WEBHOOK',
+            'DISCORD_REDDIT_CHANNEL_ID',
             'PRAW_CLIENT_ID',
             'PRAW_CLIENT_SECRET',
             'REDDIT_PASSWORD',
@@ -141,7 +135,7 @@ class Bot:
             print(f'submission id: {submission.id}')
             print(f'submission title: {submission.title}')
             print('---------')
-            if os.getenv('DISCORD_WEBHOOK'):
+            if os.getenv('DISCORD_REDDIT_CHANNEL_ID'):
                 self.discord(submission=submission)
             self.flair(submission=submission)
             self.karma(submission=submission)
@@ -175,37 +169,31 @@ class Bot:
 
         submission_time = datetime.fromtimestamp(submission.created_utc)
 
-        # create the discord message
-        # todo: use the running discord bot, directly instead of using a webhook
-        discord_webhook = {
-            'username': 'LizardByte-Bot',
-            'avatar_url': self.avatar,
-            'embeds': [
-                {
-                    'author': {
-                        'name': str(submission.author),
-                        'url': f'https://www.reddit.com/user/{submission.author}',
-                        'icon_url': str(redditor.icon_img)
-                    },
-                    'title': str(submission.title),
-                    'url': str(submission.url),
-                    'description': str(submission.selftext),
-                    'color': color,
-                    'thumbnail': {
-                        'url': 'https://www.redditstatic.com/desktop2x/img/snoo_discovery@1x.png'
-                    },
-                    'footer': {
-                        'text': f'Posted on r/{self.subreddit_name} at {submission_time}',
-                        'icon_url': 'https://www.redditstatic.com/desktop2x/img/favicon/favicon-32x32.png'
-                    }
-                }
-            ]
-        }
+        # create the discord embed
+        embed = discord.Embed(
+            author=discord.EmbedAuthor(
+                name=str(submission.author),
+                url=f'https://www.reddit.com/user/{submission.author}',
+                icon_url=str(redditor.icon_img),
+            ),
+            title=submission.title,
+            url=submission.url,
+            description=submission.selftext,
+            color=color,
+            thumbnail='https://www.redditstatic.com/desktop2x/img/snoo_discovery@1x.png',
+            footer=discord.EmbedFooter(
+                text=f'Posted on r/{self.subreddit_name} at {submission_time}',
+                icon_url='https://www.redditstatic.com/desktop2x/img/favicon/favicon-32x32.png'
+            )
+        )
 
-        # actually send the message
-        r = requests.post(os.environ['DISCORD_WEBHOOK'], json=discord_webhook)
+        # actually send the embed
+        message = globals.DISCORD_BOT.send_message(
+            channel_id=os.getenv("DISCORD_REDDIT_CHANNEL_ID"),
+            embeds=[embed],
+        )
 
-        if r.status_code == 204:  # successful completion of request, no additional content
+        if message:
             with self.lock, shelve.open(self.db) as db:
                 # the shelve doesn't update unless we recreate the main key
                 submissions = db['submissions']

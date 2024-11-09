@@ -3,7 +3,7 @@ import discord
 from discord.commands import Option
 
 # local imports
-from src.common import avatar, bot_name, org_name, version
+from src.common.common import avatar, bot_name, org_name, version
 from src.discord.views import DonateCommandView
 from src.discord import cogs_common
 

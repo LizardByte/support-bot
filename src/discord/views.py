@@ -7,7 +7,7 @@ from discord.ui.select import Select
 from discord.ui.button import Button
 
 # local imports
-from src.common import avatar, bot_name
+from src.common.common import avatar, bot_name
 from src.discord.helpers import get_json
 from src.discord.modals import RefundModal
 

@@ -7,7 +7,7 @@ from discord.commands import Option
 import requests
 
 # local imports
-from src.common import avatar, bot_name
+from src.common.common import avatar, bot_name
 from src.discord.views import RefundCommandView
 from src.discord import cogs_common
 
