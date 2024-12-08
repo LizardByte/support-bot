@@ -2,13 +2,14 @@
 import asyncio
 import os
 import threading
+from typing import Literal, Optional
 
 # lib imports
 import discord
 
 # local imports
-from src.common import bot_name, get_avatar_bytes, org_name
-from src.discord.tasks import daily_task
+from src.common.common import bot_name, data_dir, get_avatar_bytes, org_name
+from src.common.database import Database
 from src.discord.views import DonateCommandView
 
 
@@ -21,6 +22,9 @@ class Bot(discord.Bot):
     when the bot is ready.
     """
     def __init__(self, *args, **kwargs):
+        # tasks need to be imported here to avoid circular imports
+        from src.discord import tasks
+
         if 'intents' not in kwargs:
             intents = discord.Intents.all()
             kwargs['intents'] = intents
@@ -30,6 +34,11 @@ class Bot(discord.Bot):
 
         self.bot_thread = threading.Thread(target=lambda: None)
         self.token = os.environ['DISCORD_BOT_TOKEN']
+        self.db = Database(db_path=os.path.join(data_dir, 'discord_bot_database'))
+        self.ephemeral_db = {}
+        self.clean_ephemeral_cache = tasks.clean_ephemeral_cache
+        self.daily_task = tasks.daily_task
+        self.role_update_task = tasks.role_update_task
 
         self.load_extension(
             name='src.discord.cogs',
@@ -37,12 +46,15 @@ class Bot(discord.Bot):
             store=False,
         )
 
+        with self.db as db:
+            db['oauth_states'] = {}  # clear any oauth states from previous sessions
+
     async def on_ready(self):
         """
         Bot on ready event.
 
         This function runs when the discord bot is ready. The function will update the bot presence, update the username
-        and avatar, and start daily tasks.
+        and avatar, and start tasks.
         """
         print(f'py-cord version: {discord.__version__}')
         print(f'Logged in as {self.user.name} (ID: {self.user.id})')
@@ -59,17 +71,196 @@ class Bot(discord.Bot):
 
         self.add_view(DonateCommandView())  # register view for persistent listening
 
-        await self.sync_commands()
+        self.clean_ephemeral_cache.start(bot=self)
+        self.role_update_task.start(bot=self)
 
         try:
             os.environ['DAILY_TASKS']
         except KeyError:
-            daily_task.start(bot=self)
+            self.daily_task.start(bot=self)
         else:
             if os.environ['DAILY_TASKS'].lower() == 'true':
-                daily_task.start(bot=self)
+                self.daily_task.start(bot=self)
             else:
                 print("'DAILY_TASKS' environment variable is disabled")
+
+        await self.sync_commands()
+
+    async def async_send_message(
+            self,
+            channel_id: int,
+            message: str = None,
+            embed: discord.Embed = None,
+    ) -> Optional[discord.Message]:
+        """
+        Send a message to a specific channel asynchronously. If the embeds are too large, they will be shortened.
+        Additionally, if the total size of the embeds is too large, they will be sent in separate messages.
+
+        Parameters
+        ----------
+        channel_id : int
+            The ID of the channel to send the message to.
+        message : str, optional
+            The message to send.
+        embed : discord.Embed, optional
+            The embed to send.
+
+        Returns
+        -------
+        discord.Message
+            The message that was sent.
+        """
+        # ensure we have a message or embeds to send
+        if not message and not embed:
+            return
+
+        if embed and len(embed) > 6000:
+            cut_length = len(embed) - 6000 + 3
+            embed.description = embed.description[:-cut_length] + "..."
+        if embed and embed.description and len(embed.description) > 4096:
+            cut_length = len(embed.description) - 4096 + 3
+            embed.description = embed.description[:-cut_length] + "..."
+
+        channel = await self.fetch_channel(channel_id)
+        return await channel.send(content=message, embed=embed)
+
+    def send_message(
+            self,
+            channel_id: int,
+            message: str = None,
+            embed: discord.Embed = None,
+    ) -> discord.Message:
+        """
+        Send a message to a specific channel synchronously.
+
+        Parameters
+        ----------
+        channel_id : int
+            The ID of the channel to send the message to.
+        message : str, optional
+            The message to send.
+        embed : discord.Embed, optional
+            The embed to send.
+
+        Returns
+        -------
+        discord.Message
+            The message that was sent.
+        """
+        future = asyncio.run_coroutine_threadsafe(
+            self.async_send_message(
+                channel_id=channel_id,
+                message=message,
+                embed=embed,
+            ), self.loop)
+        return future.result()
+
+    async def async_update_cached_message(
+            self,
+            author_id: int,
+            reason: str,
+    ) -> bool:
+        """
+        Update the original message with the reason asynchronously.
+
+        After the message is updated, it will be removed from the cache.
+
+        Parameters
+        ----------
+        author_id : int
+            Author ID to update the cache.
+        reason : str
+            Reason to update the cache. Must be one of the following: 'duplicate', 'failure', 'success', 'timeout'.
+
+        Returns
+        -------
+        bool
+            True if the message was updated, False otherwise.
+        """
+        reasons = {
+            'duplicate': "This request was invalidated due to a new request.",
+            'failure': "An error occurred while linking your GitHub account.",
+            'success': "Your GitHub account is now linked.",
+            'timeout': "The request has timed out.",
+        }
+
+        db = self.ephemeral_db
+        db['github_cache_context'] = db.get('github_cache_context', {})
+
+        if str(author_id) not in db['github_cache_context']:
+            return False
+
+        await db['github_cache_context'][str(author_id)]['response'].edit(
+            content=reasons[reason],
+        )
+
+        # remove the context from the cache
+        del db['github_cache_context'][str(author_id)]
+
+        return True
+
+    def update_cached_message(
+            self,
+            author_id: int,
+            reason: str,
+    ) -> bool:
+        """
+        Update the original message with the reason synchronously.
+
+        After the message is updated, it will be removed from the cache.
+
+        Parameters
+        ----------
+        author_id : int
+            Author ID to update the cache.
+        reason : str
+            Reason to update the cache. Must be one of the following: 'duplicate', 'failure', 'success', 'timeout'.
+
+        Returns
+        -------
+        bool
+            True if the message was updated, False otherwise.
+        """
+        future = asyncio.run_coroutine_threadsafe(
+            self.async_update_cached_message(
+                author_id=author_id,
+                reason=reason,
+            ), self.loop)
+        return future.result()
+
+    def create_thread(
+            self,
+            message: discord.Message,
+            name: str,
+            auto_archive_duration: Literal[60, 1440, 4320, 10080] = discord.MISSING,
+            slowmode_delay: int = discord.MISSING,
+    ) -> discord.Thread:
+        """
+        Create a thread from a message.
+
+        Parameters
+        ----------
+        message : discord.Message
+            The message to create the thread from.
+        name : str
+            The name of the thread.
+        auto_archive_duration : Literal[60, 1440, 4320, 10080], optional
+            The duration in minutes before the thread is automatically archived.
+        slowmode_delay : int, optional
+            The slowmode delay for the thread.
+
+        Returns
+        -------
+        discord.Thread
+            The thread that was created.
+        """
+        future = asyncio.run_coroutine_threadsafe(
+            message.create_thread(
+                name=name,
+                auto_archive_duration=auto_archive_duration,
+                slowmode_delay=slowmode_delay,
+            ), self.loop)
+        return future.result()
 
     def start_threaded(self):
         try:
@@ -85,14 +276,12 @@ class Bot(discord.Bot):
             self.stop()
 
     def stop(self, future: asyncio.Future = None):
-        print("Attempting to stop daily tasks")
-        daily_task.stop()
+        print("Attempting to stop tasks")
+        self.daily_task.stop()
+        self.role_update_task.stop()
+        self.clean_ephemeral_cache.stop()
         print("Attempting to close bot connection")
         if self.bot_thread is not None and self.bot_thread.is_alive():
             asyncio.run_coroutine_threadsafe(self.close(), self.loop)
             self.bot_thread.join()
         print("Closed bot")
-
-        # Set a result for the future to mark it as done (unit testing)
-        if future and not future.done():
-            future.set_result(None)
