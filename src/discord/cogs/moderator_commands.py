@@ -7,7 +7,7 @@ import discord
 from discord.commands import Option
 
 # local imports
-from src.common import avatar, bot_name
+from src.common.common import avatar, bot_name, colors
 
 # constants
 recommended_channel_desc = 'Select the recommended channel'  # hack for flake8 F722
@@ -56,7 +56,7 @@ class ModeratorCommandsCog(discord.Cog):
         embed = discord.Embed(
             title="Incorrect channel",
             description=f"Please move discussion to {recommended_channel.mention}",
-            color=0x00ff00,
+            color=colors['orange'],
         )
 
         permission_ch_id = ''
@@ -150,52 +150,63 @@ Commands not showing up? Try restarting discord or clearing cache.
         embed.set_author(name=user.name)
         embed.set_thumbnail(url=user.display_avatar.url)
 
-        if user.colour.value:  # If user has a role with a color
-            embed.colour = user.colour
+        embed.colour = user.color if user.color.value else colors['white']
+
+        with self.bot.db as db:
+            user_data = db.get('discord_users', {}).get(str(user.id))
+            if user_data and user_data.get('github_username'):
+                embed.add_field(
+                    name="GitHub",
+                    value=f"[{user_data['github_username']}](https://github.com/{user_data['github_username']})",
+                    inline=False,
+                )
 
         if isinstance(user, discord.User):  # Checks if the user in the server
             embed.set_footer(text="This user is not in this server.")
-        else:  # We end up here if the user is a discord.Member object
-            embed.add_field(
-                name="Joined Server at",
-                value=f'{discord.utils.format_dt(user.joined_at, "R")}\n'
-                      f'{discord.utils.format_dt(user.joined_at, "F")}',
-                inline=False,
-            )  # When the user joined the server
+            await ctx.respond(embeds=[embed])
+            return
 
-            # get User Roles
-            roles = [role.name for role in user.roles]
-            roles.pop(0)  # remove @everyone role
-            embed.add_field(
-                name="Server Roles",
-                value='\n'.join(roles) if roles else "No roles",
-                inline=False,
-            )
+        # We end up here if the user is a discord.Member object
+        embed.add_field(
+            name="Joined Server at",
+            value=f'{discord.utils.format_dt(user.joined_at, "R")}\n'
+                  f'{discord.utils.format_dt(user.joined_at, "F")}',
+            inline=False,
+        )  # When the user joined the server
 
-            # get User Status, such as Server Owner, Server Moderator, Server Admin, etc.
-            user_status = []
-            if user.guild.owner_id == user.id:
-                user_status.append("Server Owner")
-            if user.guild_permissions.administrator:
-                user_status.append("Server Admin")
-            if user.guild_permissions.manage_guild:
-                user_status.append("Server Moderator")
-            embed.add_field(
-                name="User Status",
-                value='\n'.join(user_status),
-                inline=False,
-            )
+        # get User Roles
+        roles = [role.name for role in user.roles]
+        roles.pop(0)  # remove @everyone role
+        embed.add_field(
+            name="Server Roles",
+            value='\n'.join(roles) if roles else "No roles",
+            inline=False,
+        )
 
-            if user.premium_since:  # If the user is boosting the server
-                boosting_value = (f'{discord.utils.format_dt(user.premium_since, "R")}\n'
-                                  f'{discord.utils.format_dt(user.premium_since, "F")}')
-            else:
-                boosting_value = "Not boosting"
-            embed.add_field(
-                name="Boosting Since",
-                value=boosting_value,
-                inline=False,
-            )
+        # get User Status, such as Server Owner, Server Moderator, Server Admin, etc.
+        user_status = []
+        if user.guild.owner_id == user.id:
+            user_status.append("Server Owner")
+        if user.guild_permissions.administrator:
+            user_status.append("Server Admin")
+        if user.guild_permissions.manage_guild:
+            user_status.append("Server Moderator")
+        embed.add_field(
+            name="User Status",
+            value='\n'.join(user_status),
+            inline=False,
+        )
+
+        if user.premium_since:  # If the user is boosting the server
+            boosting_value = (f'{discord.utils.format_dt(user.premium_since, "R")}\n'
+                              f'{discord.utils.format_dt(user.premium_since, "F")}')
+        else:
+            boosting_value = "Not boosting"
+        embed.add_field(
+            name="Boosting Since",
+            value=boosting_value,
+            inline=False,
+        )
 
         await ctx.respond(embeds=[embed])  # Sends the embed
 
