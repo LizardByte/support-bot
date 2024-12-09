@@ -7,7 +7,7 @@ from discord.ui.select import Select
 from discord.ui.button import Button
 
 # local imports
-from src.common import avatar, bot_name
+from src.common.common import avatar, bot_name, colors
 from src.discord.helpers import get_json
 from src.discord.modals import RefundModal
 
@@ -89,13 +89,13 @@ class DocsCommandView(discord.ui.View):
         if complete:
             embed.title = self.docs_project
             embed.description = f'The selected docs are available at {url}'
-            embed.color = 0x39FF14
+            embed.color = colors['green']
             embed.url = url
         else:
             # info is not complete
             embed.title = "Select the remaining values"
             embed.description = None
-            embed.color = 0xF1C232
+            embed.color = colors['orange']
             embed.url = None
 
         return complete, embed
@@ -113,7 +113,7 @@ class DocsCommandView(discord.ui.View):
 
         if not complete:
             embed.title = "Command timed out..."
-            embed.color = 0xDC143C
+            embed.color = colors['red']
             delete_after = 30  # delete after 30 seconds
         else:
             delete_after = None  # do not delete
