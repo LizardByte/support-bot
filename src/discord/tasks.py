@@ -182,12 +182,19 @@ async def daily_task(bot: Bot) -> bool:
 
 
 @tasks.loop(minutes=1.0)
-async def role_update_task(bot: Bot) -> bool:
+async def role_update_task(bot: Bot, test_mode: bool = False) -> bool:
     """
     Run the role update task.
 
     This function runs on a schedule, every 1 minute.
     If the current time is not divisible by 10, return False. e.g. Run every 10 minutes.
+
+    Parameters
+    ----------
+    bot : Bot
+        The Discord bot instance.
+    test_mode : bool, optional
+        Whether to run the task in test mode, by default False. This simply affects how the roles are assigned.
 
     Returns
     -------
@@ -234,14 +241,14 @@ async def role_update_task(bot: Bot) -> bool:
             user_data['roles'] = []
 
         if user_data.get('github_username'):
-            user_data['roles'].append('github-users')
+            user_data['roles'].append('github-user')
 
         # update the discord user roles
         for g in bot.guilds:
             roles = g.roles
 
             role_map = {
-                'github-users': discord.utils.get(roles, name='github-users'),
+                'github-user': discord.utils.get(roles, name='github-user'),
                 'supporters': discord.utils.get(roles, name='supporters'),
                 't1-sponsors': discord.utils.get(roles, name='t1-sponsors'),
                 't2-sponsors': discord.utils.get(roles, name='t2-sponsors'),
@@ -258,13 +265,21 @@ async def role_update_task(bot: Bot) -> bool:
                     continue
 
                 if user_role in user_roles:
-                    # await member.add_roles(role)
-                    add_future = asyncio.run_coroutine_threadsafe(member.add_roles(role), bot.loop)
-                    add_future.result()
+                    if not test_mode:
+                        await member.add_roles(role)
+                    else:
+                        # using a standard await fails inside unit tests, although it works normally
+                        # RuntimeError: Timeout context manager should be used inside a task
+                        add_future = asyncio.run_coroutine_threadsafe(member.add_roles(role), bot.loop)
+                        add_future.result()
                 elif user_role in revocable_roles:
-                    # await member.remove_roles(role)
-                    remove_future = asyncio.run_coroutine_threadsafe(member.remove_roles(role), bot.loop)
-                    remove_future.result()
+                    if not test_mode:
+                        await member.remove_roles(role)
+                    else:
+                        # using a standard await fails inside unit tests, although it works normally
+                        # RuntimeError: Timeout context manager should be used inside a task
+                        remove_future = asyncio.run_coroutine_threadsafe(member.remove_roles(role), bot.loop)
+                        remove_future.result()
 
     with bot.db as db:
         db['discord_users'] = discord_users

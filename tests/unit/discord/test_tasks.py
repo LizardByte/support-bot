@@ -122,7 +122,7 @@ async def test_role_update_task(discord_bot, discord_db_users, mocker, skip):
     mock_datetime.now.return_value = datetime(2023, 1, 1, 0, 1 if skip else 0, 0, tzinfo=timezone.utc)
 
     # Run the task
-    result = await tasks.role_update_task(bot=discord_bot)
+    result = await tasks.role_update_task(bot=discord_bot, test_mode=True)
 
     assert result is not skip
 
