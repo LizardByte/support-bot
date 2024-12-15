@@ -32,6 +32,8 @@ class Bot(discord.Bot):
             kwargs['auto_sync_commands'] = True
         super().__init__(*args, **kwargs)
 
+        self.DEGRADED = False
+
         self.bot_thread = threading.Thread(target=lambda: None)
         self.token = os.environ['DISCORD_BOT_TOKEN']
         self.db = Database(db_path=os.path.join(data_dir, 'discord_bot_database'))
@@ -122,7 +124,12 @@ class Bot(discord.Bot):
             embed.description = embed.description[:-cut_length] + "..."
 
         channel = await self.fetch_channel(channel_id)
-        return await channel.send(content=message, embed=embed)
+
+        try:
+            return await channel.send(content=message, embed=embed)
+        except Exception as e:
+            print(f"Error sending message: {e}")
+            self.DEGRADED = True
 
     def send_message(
             self,
@@ -273,10 +280,12 @@ class Bot(discord.Bot):
             self.bot_thread.start()
         except KeyboardInterrupt:
             print("Keyboard Interrupt Detected")
+            self.DEGRADED = True
             self.stop()
 
     def stop(self, future: asyncio.Future = None):
         print("Attempting to stop tasks")
+        self.DEGRADED = True
         self.daily_task.stop()
         self.role_update_task.stop()
         self.clean_ephemeral_cache.stop()
