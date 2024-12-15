@@ -53,6 +53,7 @@ platforms such as GitHub discussions/issues might be added in the future.
 | GITHUB_CLIENT_ID                 | True     | `None`                                               | GitHub OAuth2 client id.                                                |
 | GITHUB_CLIENT_SECRET             | True     | `None`                                               | GitHub OAuth2 client secret.                                            |
 | GITHUB_REDIRECT_URI              | False    | `https://localhost:8080/github/callback`             | The redirect uri for OAuth2. Must be publicly accessible.               |
+| GITHUB_TOKEN                     | True     | `None`                                               | GitHub personal access token. Must have `read:org`                      |
 | GITHUB_WEBHOOK_SECRET_KEY        | True     | `None`                                               | A secret value to ensure webhooks are from trusted sources.             |
 | GRAVATAR_EMAIL                   | False    | `None`                                               | Gravatar email address for bot avatar.                                  |
 | IGDB_CLIENT_ID                   | False    | `None`                                               | Required if daily_releases is enabled.                                  |
