@@ -12,7 +12,7 @@ from requests_oauthlib import OAuth2Session
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # local imports
-from src.common.common import app_dir, colors
+from src.common.common import app_dir, colors, version
 from src.common import crypto
 from src.common import globals
 from src.common import time
@@ -77,7 +77,20 @@ def html_to_md(html: str) -> str:
 
 @app.route('/status')
 def status():
-    return "LizardByte-bot is live!"
+    degraded_checks = [
+        getattr(globals.DISCORD_BOT, 'DEGRADED', True),
+        getattr(globals.REDDIT_BOT, 'DEGRADED', True),
+    ]
+
+    s = 'ok'
+    if any(degraded_checks):
+        s = 'degraded'
+
+    result = {
+        "status": s,
+        "version": version,
+    }
+    return jsonify(result)
 
 
 @app.route("/favicon.ico")

@@ -24,13 +24,30 @@ def test_client():
             yield test_client  # this is where the testing happens!
 
 
-def test_status(test_client):
+@pytest.mark.parametrize("degraded", [
+    False,
+    True,
+])
+def test_status(test_client, discord_bot, degraded, mocker):
     """
     WHEN the '/status' page is requested (GET)
     THEN check that the response is valid
     """
+    # patch reddit bot, since we're not using its fixture
+    mocker.patch('src.common.globals.REDDIT_BOT', Mock(DEGRADED=False))
+
+    if degraded:
+        mocker.patch('src.common.globals.DISCORD_BOT.DEGRADED', True)
+
     response = test_client.get('/status')
     assert response.status_code == 200
+
+    if not degraded:
+        assert response.json['status'] == 'ok'
+    else:
+        assert response.json['status'] == 'degraded'
+
+    assert response.json['version']
 
 
 def test_favicon(test_client):

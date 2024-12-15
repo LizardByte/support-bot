@@ -19,6 +19,7 @@ from src.common import globals
 class Bot:
     def __init__(self, **kwargs):
         self.STOP_SIGNAL = False
+        self.DEGRADED = False
 
         # threads
         self.bot_thread = threading.Thread(target=lambda: None)
@@ -57,8 +58,7 @@ class Bot:
         self.migrate_shelve()
         self.migrate_last_online()
 
-    @staticmethod
-    def validate_env() -> bool:
+    def validate_env(self) -> bool:
         required_env = [
             'DISCORD_REDDIT_CHANNEL_ID',
             'PRAW_CLIENT_ID',
@@ -69,6 +69,7 @@ class Bot:
         for env in required_env:
             if env not in os.environ:
                 sys.stderr.write(f"Environment variable ``{env}`` must be defined\n")
+                self.DEGRADED = True
                 return False
         return True
 
@@ -165,6 +166,7 @@ class Bot:
         try:
             redditor = self.reddit.redditor(name=submission.author)
         except Exception:
+            self.DEGRADED = True
             return
 
         # create the discord embed
@@ -266,11 +268,13 @@ class Bot:
             self.bot_thread.start()
         except KeyboardInterrupt:
             print("Keyboard Interrupt Detected")
+            self.DEGRADED = True
             self.stop()
 
     def stop(self):
         print("Attempting to stop reddit bot")
         self.STOP_SIGNAL = True
+        self.DEGRADED = True
         if self.bot_thread is not None and self.bot_thread.is_alive():
             self.comment_thread.join()
             self.submission_thread.join()
