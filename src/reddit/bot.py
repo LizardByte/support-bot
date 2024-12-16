@@ -10,16 +10,19 @@ import time
 import discord
 import praw
 from praw import models
+import prawcore
 
 # local imports
 from src.common import common
 from src.common import globals
+from src.common import inspector
 
 
 class Bot:
     def __init__(self, **kwargs):
         self.STOP_SIGNAL = False
         self.DEGRADED = False
+        self.DEGRADED_REASONS = []
 
         # threads
         self.bot_thread = threading.Thread(target=lambda: None)
@@ -70,6 +73,8 @@ class Bot:
             if env not in os.environ:
                 sys.stderr.write(f"Environment variable ``{env}`` must be defined\n")
                 self.DEGRADED = True
+                reason = inspector.current_name()
+                self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
                 return False
         return True
 
@@ -167,6 +172,8 @@ class Bot:
             redditor = self.reddit.redditor(name=submission.author)
         except Exception:
             self.DEGRADED = True
+            reason = inspector.current_name()
+            self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
             return
 
         # create the discord embed
@@ -237,21 +244,49 @@ class Bot:
 
     def _comment_loop(self, test: bool = False):
         # process comments and then keep monitoring
-        for comment in self.subreddit.stream.comments():
-            self.process_comment(comment=comment)
+        reason = inspector.current_name()
+        while True:
             if self.STOP_SIGNAL:
                 break
-            if test:
-                return comment
+
+            if self.DEGRADED and reason in self.DEGRADED_REASONS and len(self.DEGRADED_REASONS) == 1:
+                self.DEGRADED = False
+
+            try:
+                for comment in self.subreddit.stream.comments():
+                    self.process_comment(comment=comment)
+                    if self.STOP_SIGNAL:
+                        break
+                    if test:
+                        return comment
+            except prawcore.exceptions.ServerError as e:
+                print(f"Server Error: {e}")
+                self.DEGRADED = True
+                self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
+                time.sleep(60)
 
     def _submission_loop(self, test: bool = False):
         # process submissions and then keep monitoring
-        for submission in self.subreddit.stream.submissions():
-            self.process_submission(submission=submission)
+        reason = inspector.current_name()
+        while True:
             if self.STOP_SIGNAL:
                 break
-            if test:
-                return submission
+
+            if self.DEGRADED and reason in self.DEGRADED_REASONS and len(self.DEGRADED_REASONS) == 1:
+                self.DEGRADED = False
+
+            try:
+                for submission in self.subreddit.stream.submissions():
+                    self.process_submission(submission=submission)
+                    if self.STOP_SIGNAL:
+                        break
+                    if test:
+                        return submission
+            except prawcore.exceptions.ServerError as e:
+                print(f"Server Error: {e}")
+                self.DEGRADED = True
+                self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
+                time.sleep(60)
 
     def start(self):
         # start comment and submission loops in separate threads
@@ -269,12 +304,16 @@ class Bot:
         except KeyboardInterrupt:
             print("Keyboard Interrupt Detected")
             self.DEGRADED = True
+            reason = inspector.current_name()
+            self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
             self.stop()
 
     def stop(self):
         print("Attempting to stop reddit bot")
         self.STOP_SIGNAL = True
         self.DEGRADED = True
+        reason = inspector.current_name()
+        self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
         if self.bot_thread is not None and self.bot_thread.is_alive():
             self.comment_thread.join()
             self.submission_thread.join()
