@@ -1,4 +1,4 @@
-cryptography==44.0.0
+cryptography==44.0.1
 Flask==3.1.0
 GitPython==3.1.44
 igdb-api-v4==0.3.3
