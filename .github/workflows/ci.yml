@@ -1,12 +1,19 @@
 ---
 name: CI
+permissions:
+  contents: read
 
 on:
   pull_request:
-    branches: [master]
-    types: [opened, synchronize, reopened]
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
   push:
-    branches: [master]
+    branches:
+      - master
   workflow_dispatch:
 
 concurrency:
