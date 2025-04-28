@@ -27,7 +27,7 @@ jobs:
     steps:
       - name: Setup Release
         id: setup-release
-        uses: LizardByte/setup-release-action@v2025.102.14715
+        uses: LizardByte/setup-release-action@v2025.426.225
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -87,7 +87,7 @@ jobs:
         if: >-
           (github.event_name == 'push' && github.ref == 'refs/heads/master') &&
           steps.setup-release.outputs.publish_release == 'true'
-        uses: LizardByte/create-release-action@v2025.102.13208
+        uses: LizardByte/create-release-action@v2025.426.1549
         with:
           allowUpdates: true
           artifacts: ''
