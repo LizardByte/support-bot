@@ -10,7 +10,7 @@ import discord
 # local imports
 from src.common.common import bot_name, data_dir, get_avatar_bytes, org_name
 from src.common.database import Database
-from src.discord.views import DonateCommandView
+from src.discord_bot.views import DonateCommandView
 
 
 class Bot(discord.Bot):
@@ -23,7 +23,7 @@ class Bot(discord.Bot):
     """
     def __init__(self, *args, **kwargs):
         # tasks need to be imported here to avoid circular imports
-        from src.discord import tasks
+        from src.discord_bot import tasks
 
         if 'intents' not in kwargs:
             intents = discord.Intents.all()
@@ -43,7 +43,7 @@ class Bot(discord.Bot):
         self.role_update_task = tasks.role_update_task
 
         self.load_extension(
-            name='src.discord.cogs',
+            name='src.discord_bot.cogs',
             recursive=True,
             store=False,
         )

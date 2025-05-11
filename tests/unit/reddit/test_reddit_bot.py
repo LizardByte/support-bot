@@ -17,7 +17,7 @@ from praw.config import _NotSet
 import pytest
 
 # local imports
-from src.reddit.bot import Bot
+from src.reddit_bot.bot import Bot
 
 Betamax.register_serializer(PrettyJSONSerializer)
 

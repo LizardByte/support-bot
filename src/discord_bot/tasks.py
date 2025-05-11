@@ -13,8 +13,8 @@ from igdb.wrapper import IGDBWrapper
 # local imports
 from src.common.common import avatar, bot_name, bot_url, colors
 from src.common import sponsors
-from src.discord.bot import Bot
-from src.discord.helpers import igdb_authorization, month_dictionary
+from src.discord_bot.bot import Bot
+from src.discord_bot.helpers import igdb_authorization, month_dictionary
 
 
 @tasks.loop(seconds=30)
