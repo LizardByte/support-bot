@@ -1,4 +1,5 @@
 # standard imports
+import asyncio
 import os
 import time
 
@@ -66,3 +67,17 @@ def no_github_token():
     yield
 
     os.environ['GITHUB_TOKEN'] = og_token
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """
+    Create an event loop that isn't closed after each test.
+
+    This is necessary for pytest-asyncio 0.26.0 and later, as it fails to closes the loop after each test.
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+
+    loop.close()
