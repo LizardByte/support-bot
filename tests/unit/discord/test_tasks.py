@@ -6,7 +6,7 @@ import os
 import pytest
 
 # local imports
-from src.discord import tasks
+from src.discord_bot import tasks
 
 
 def set_env_variable(env_var_name, request):
@@ -98,7 +98,7 @@ async def test_daily_task(discord_bot, mocker, skip, set_daily_releases, set_dai
     THEN check that the task runs without error
     """
     # Patch datetime.datetime at the location where it's imported in `tasks`
-    mock_datetime = mocker.patch('src.discord.tasks.datetime', autospec=True)
+    mock_datetime = mocker.patch('src.discord_bot.tasks.datetime', autospec=True)
     mock_datetime.now.return_value = datetime(2023, 1, 1, 1 if skip else 12, 0, 0, tzinfo=timezone.utc)
 
     # Run the daily task
@@ -118,7 +118,7 @@ async def test_role_update_task(discord_bot, discord_db_users, mocker, skip):
     THEN check that the task runs without error
     """
     # Patch datetime.datetime at the location where it's imported in `tasks`
-    mock_datetime = mocker.patch('src.discord.tasks.datetime', autospec=True)
+    mock_datetime = mocker.patch('src.discord_bot.tasks.datetime', autospec=True)
     mock_datetime.now.return_value = datetime(2023, 1, 1, 0, 1 if skip else 0, 0, tzinfo=timezone.utc)
 
     # Run the task

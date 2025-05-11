@@ -8,8 +8,8 @@ import requests
 
 # local imports
 from src.common.common import avatar, bot_name, colors
-from src.discord.views import RefundCommandView
-from src.discord import cogs_common
+from src.discord_bot.views import RefundCommandView
+from src.discord_bot import cogs_common
 
 
 class FunCommandsCog(discord.Cog):

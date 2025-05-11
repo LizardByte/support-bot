@@ -13,7 +13,7 @@ from src.common import globals
 dotenv.load_dotenv(override=False)  # environment secrets take priority over .env file
 
 # import after env loaded
-from src.discord import bot as d_bot  # noqa: E402
+from src.discord_bot import bot as d_bot  # noqa: E402
 
 
 @pytest.fixture(scope='session')

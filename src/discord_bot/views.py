@@ -8,8 +8,8 @@ from discord.ui.button import Button
 
 # local imports
 from src.common.common import avatar, bot_name, colors
-from src.discord.helpers import get_json
-from src.discord.modals import RefundModal
+from src.discord_bot.helpers import get_json
+from src.discord_bot.modals import RefundModal
 
 
 class DocsCommandDefaultProjects:
@@ -212,7 +212,7 @@ class DocsCommandView(discord.ui.View):
         if select == self.children[0]:  # chose the docs project
             self.docs_version = None
 
-        complete, embed = self.check_completion_status()
+        _, embed = self.check_completion_status()
 
         await interaction.response.edit_message(embed=embed, view=self)
 

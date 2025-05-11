@@ -7,9 +7,9 @@ load_dotenv(override=False)  # environment secrets take priority over .env file
 
 # local imports, import after env loaded
 from src.common import globals  # noqa: E402
-from src.discord import bot as d_bot  # noqa: E402
+from src.discord_bot import bot as d_bot  # noqa: E402
 from src.common import webapp  # noqa: E402
-from src.reddit import bot as r_bot  # noqa: E402
+from src.reddit_bot import bot as r_bot  # noqa: E402
 
 
 def main():

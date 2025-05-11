@@ -4,8 +4,8 @@ from discord.commands import Option
 
 # local imports
 from src.common.common import avatar, bot_name, colors, org_name, version
-from src.discord.views import DonateCommandView
-from src.discord import cogs_common
+from src.discord_bot.views import DonateCommandView
+from src.discord_bot import cogs_common
 
 
 class BaseCommandsCog(discord.Cog):
