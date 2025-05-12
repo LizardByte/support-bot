@@ -113,10 +113,8 @@ class GitHubCommandsCog(discord.Cog):
         authorization_url, state = auth.authorization_url(platform_map[platform]['auth_url'])
 
         # Store the state in the user's session or database
-        with self.bot.db as db:
-            db['oauth_states'] = db.get('oauth_states', {})
-            db['oauth_states'][str(ctx.author.id)] = state
-            db.sync()
+        oauth_states = self.bot.oauth_states
+        oauth_states[str(ctx.author.id)] = state
 
         response = await ctx.respond(
             f"Please authorize the application by clicking [here]({authorization_url}).",

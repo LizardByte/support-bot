@@ -9,6 +9,7 @@ from typing import Tuple
 import discord
 from flask import Flask, jsonify, redirect, request, Response, send_from_directory
 from requests_oauthlib import OAuth2Session
+from tinydb import Query
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # local imports
@@ -109,8 +110,7 @@ def discord_callback():
         return Response(html.escape(request.args['error_description']), status=400)
 
     # get all active states from the global state manager
-    with globals.DISCORD_BOT.db as db:
-        active_states = db['oauth_states']
+    active_states = globals.DISCORD_BOT.oauth_states
 
     discord_oauth = OAuth2Session(DISCORD_CLIENT_ID, redirect_uri=DISCORD_REDIRECT_URI)
     token = discord_oauth.fetch_token(
@@ -144,19 +144,32 @@ def discord_callback():
     connections_response = discord_oauth.get("https://discord.com/api/users/@me/connections")
     connections = connections_response.json()
 
-    with globals.DISCORD_BOT.db as db:
-        db['discord_users'] = db.get('discord_users', {})
-        db['discord_users'][discord_user['id']] = {
-            'discord_username': discord_user['username'],
-            'discord_global_name': discord_user['global_name'],
-            'github_id': None,
-            'github_username': None,
-        }
+    # Default user data
+    user_data = {
+        'user_id': int(discord_user['id']),
+        'discord_username': discord_user['username'],
+        'discord_global_name': discord_user['global_name'],
+        'github_id': None,
+        'github_username': None,
+    }
 
-        for connection in connections:
-            if connection['type'] == 'github':
-                db['discord_users'][discord_user['id']]['github_id'] = connection['id']
-                db['discord_users'][discord_user['id']]['github_username'] = connection['name']
+    # Check for GitHub connections
+    for connection in connections:
+        if connection['type'] == 'github':
+            user_data['github_id'] = int(connection['id'])
+            user_data['github_username'] = connection['name']
+
+    with globals.DISCORD_BOT.db as db:
+        query = Query()
+
+        # Get the discord_users table
+        discord_users_table = db.table('discord_users')
+
+        # Upsert the user data
+        discord_users_table.upsert(
+            user_data,
+            query.user_id == int(discord_user['id'])
+        )
 
     globals.DISCORD_BOT.update_cached_message(
         author_id=discord_user['id'],
@@ -177,8 +190,7 @@ def github_callback():
     state = request.args.get('state')
 
     # get all active states from the global state manager
-    with globals.DISCORD_BOT.db as db:
-        active_states = db['oauth_states']
+    active_states = globals.DISCORD_BOT.oauth_states
 
     github_oauth = OAuth2Session(GITHUB_CLIENT_ID, redirect_uri=GITHUB_REDIRECT_URI)
     token = github_oauth.fetch_token(
@@ -215,13 +227,25 @@ def github_callback():
     discord_user = discord_user_future.result()
 
     with globals.DISCORD_BOT.db as db:
-        db['discord_users'] = db.get('discord_users', {})
-        db['discord_users'][discord_user_id] = {
+        query = Query()
+
+        # Get the discord_users table
+        discord_users_table = db.table('discord_users')
+
+        # Create user data object
+        user_data = {
+            'user_id': int(discord_user_id),
             'discord_username': discord_user.name,
             'discord_global_name': discord_user.global_name,
-            'github_id': github_user['id'],
+            'github_id': int(github_user['id']),
             'github_username': github_user['login'],
         }
+
+        # Upsert the user data (insert or update)
+        discord_users_table.upsert(
+            user_data,
+            query.user_id == int(discord_user_id)
+        )
 
     globals.DISCORD_BOT.update_cached_message(
         author_id=discord_user_id,

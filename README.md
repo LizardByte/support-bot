@@ -42,7 +42,9 @@ platforms such as GitHub discussions/issues might be added in the future.
 | DAILY_TASKS                      | False    | `true`                                               | Daily tasks on or off.                                                  |
 | DAILY_RELEASES                   | False    | `true`                                               | Send a message for each game released on this day in history.           |
 | DAILY_CHANNEL_ID                 | False    | `None`                                               | Required if daily_tasks is enabled.                                     |
-| DAILY_TASKS_UTC_HOUR             | False    | `12`                                                 | The hour to run daily tasks.                                            | 
+| DAILY_TASKS_UTC_HOUR             | False    | `12`                                                 | The hour to run daily tasks.                                            |
+| DATA_REPO                        | False    | `https://github.com/LizardByte/support-bot-data`     | Repository to store persistent data. This repository should be private! |
+| DATA_REPO_BRANCH                 | False    | `master`                                             | Branch to store persistent data.                                        |
 | DISCORD_BOT_TOKEN                | True     | `None`                                               | Token from Bot page on discord developer portal.                        |
 | DISCORD_CLIENT_ID                | True     | `None`                                               | Discord OAuth2 client id.                                               |
 | DISCORD_CLIENT_SECRET            | True     | `None`                                               | Discord OAuth2 client secret.                                           |
@@ -58,11 +60,11 @@ platforms such as GitHub discussions/issues might be added in the future.
 | GRAVATAR_EMAIL                   | False    | `None`                                               | Gravatar email address for bot avatar.                                  |
 | IGDB_CLIENT_ID                   | False    | `None`                                               | Required if daily_releases is enabled.                                  |
 | IGDB_CLIENT_SECRET               | False    | `None`                                               | Required if daily_releases is enabled.                                  |
-| PRAW_CLIENT_ID                   | True     | None                                                 | `client_id` from reddit app setup page.                                 |
-| PRAW_CLIENT_SECRET               | True     | None                                                 | `client_secret` from reddit app setup page.                             |
-| PRAW_SUBREDDIT                   | True     | None                                                 | Subreddit to monitor (reddit user should be moderator of the subreddit) |
-| REDDIT_USERNAME                  | True     | None                                                 | Reddit username                                                         |
-| REDDIT_PASSWORD                  | True     | None                                                 | Reddit password                                                         |
+| PRAW_CLIENT_ID                   | True     | `None`                                               | `client_id` from reddit app setup page.                                 |
+| PRAW_CLIENT_SECRET               | True     | `None`                                               | `client_secret` from reddit app setup page.                             |
+| PRAW_SUBREDDIT                   | True     | `None`                                               | Subreddit to monitor (reddit user should be moderator of the subreddit) |
+| REDDIT_USERNAME                  | True     | `None`                                               | Reddit username                                                         |
+| REDDIT_PASSWORD                  | True     | `None`                                               | Reddit password                                                         |
 | SUPPORT_COMMANDS_REPO            | False    | `https://github.com/LizardByte/support-bot-commands` | Repository for support commands.                                        |
 | SUPPORT_COMMANDS_BRANCH          | False    | `master`                                             | Branch for support commands.                                            |
 
