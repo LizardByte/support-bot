@@ -36,18 +36,35 @@ class Database:
             self.repo_branch = os.getenv("DATA_REPO_BRANCH", "master")
             self.db_dir = os.path.join(self.db_dir, "support-bot-data")
 
+            # Get Git user configuration from environment variables
+            self.git_user_name = os.environ["GIT_USER_NAME"]
+            self.git_user_email = os.environ["GIT_USER_EMAIL"]
+
+            # Git credentials for authentication (required for private repo)
+            self.git_token = os.getenv("GIT_TOKEN") or os.getenv("GITHUB_TOKEN")
+            if not self.git_token:
+                raise ValueError("GIT_TOKEN or GITHUB_TOKEN must be provided for private repository access")
+
+            # Prepare URL with credentials for private repo access
+            protocol, repo_path = self.repo_url.split("://", 1)
+            clone_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
+
             if not os.path.exists(self.db_dir):
                 # Clone repo if it doesn't exist
                 print(f"Cloning repository {self.repo_url} to {self.db_dir}")
                 try:
                     # Try cloning with the specified branch
-                    self.repo = git.Repo.clone_from(self.repo_url, self.db_dir, branch=self.repo_branch)
+                    self.repo = git.Repo.clone_from(clone_url, self.db_dir, branch=self.repo_branch)
+                    # Configure the repo
+                    self._configure_repo()
                 except git.exc.GitCommandError as e:
                     # Check if the error is due to branch not found
                     if "Remote branch" in str(e) and "not found in upstream origin" in str(e):
                         print(f"Branch '{self.repo_branch}' not found in remote. Creating a new empty branch.")
                         # Clone with default branch first
-                        self.repo = git.Repo.clone_from(self.repo_url, self.db_dir)
+                        self.repo = git.Repo.clone_from(clone_url, self.db_dir)
+                        # Configure the repo
+                        self._configure_repo()
 
                         # Create a new orphan branch (not based on any other branch)
                         self.repo.git.checkout('--orphan', self.repo_branch)
@@ -91,6 +108,8 @@ class Database:
             else:
                 # Use existing repo
                 self.repo = git.Repo(self.db_dir)
+                # Configure the repo
+                self._configure_repo()
 
                 # Make sure the correct branch is checked out
                 if self.repo_branch not in [ref.name.split('/')[-1] for ref in self.repo.refs]:
@@ -135,6 +154,34 @@ class Database:
             storage=CachingMiddleware(JSONStorage),
             indent=4,
         )
+
+    def _configure_repo(self):
+        """Configure the Git repository with user identity from environment variables."""
+        if self.repo:
+            with self.repo.config_writer() as config:
+                # Set user name and email for this repository
+                config.set_value("user", "name", self.git_user_name)
+                config.set_value("user", "email", self.git_user_email)
+
+                # Configure credentials for private repo access
+                domain = self.repo_url.split("://")[-1].split("/")[0]
+
+                # Set credential store helper
+                config.set_value("credential", "helper", "store")
+
+                # Set credential helper specific to this domain
+                if self.git_user_name and self.git_token:
+                    config.set_value(f"credential \"{domain}\"", "username", self.git_user_name)
+
+            # Update origin URL with credentials to ensure push works
+            protocol, repo_path = self.repo_url.split("://", 1)
+            new_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
+            try:
+                origin = self.repo.remote('origin')
+                origin.set_url(new_url)
+            except git.exc.GitCommandError as e:
+                print(f"Failed to update remote URL: {str(e)}")
+                # Continue anyway, might work with stored credentials
 
     def _check_for_migration(self):
         # Check if migration is needed (shelve exists but json doesn't)
@@ -253,15 +300,20 @@ class Database:
 
                         # Check if we have anything to commit after adding
                         if self.repo.git.status('--porcelain'):
+                            # Ensure the repository is configured with user identity
+                            self._configure_repo()
+
                             # Commit all changes at once with a general message
                             commit_message = "Update database files"
                             self.repo.git.commit('-m', commit_message)
                             print("Committed changes to git data repository")
 
-                            # Push to remote
+                            # Push to remote with credentials
                             try:
-                                origin = self.repo.remote('origin')
-                                origin.push()
+                                # Ensure we're using the credentials for push
+                                protocol, repo_path = self.repo_url.split("://", 1)
+                                push_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
+                                self.repo.git.push(push_url, self.repo_branch)
                                 print("Pushed changes to remote git data repository")
                             except git.exc.GitCommandError as e:
                                 print(f"Failed to push changes: {str(e)}")
