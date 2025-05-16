@@ -8,7 +8,7 @@ from typing import Literal, Optional
 import discord
 
 # local imports
-from src.common.common import bot_name, data_dir, get_avatar_bytes, org_name
+from src.common.common import bot_name, get_avatar_bytes, org_name
 from src.common.database import Database
 from src.discord_bot.views import DonateCommandView
 
@@ -36,8 +36,9 @@ class Bot(discord.Bot):
 
         self.bot_thread = threading.Thread(target=lambda: None)
         self.token = os.environ['DISCORD_BOT_TOKEN']
-        self.db = Database(db_path=os.path.join(data_dir, 'discord_bot_database'))
+        self.db = Database(db_name='discord_bot_database')
         self.ephemeral_db = {}
+        self.oauth_states = {}
         self.clean_ephemeral_cache = tasks.clean_ephemeral_cache
         self.daily_task = tasks.daily_task
         self.role_update_task = tasks.role_update_task
@@ -47,9 +48,6 @@ class Bot(discord.Bot):
             recursive=True,
             store=False,
         )
-
-        with self.db as db:
-            db['oauth_states'] = {}  # clear any oauth states from previous sessions
 
     async def on_ready(self):
         """

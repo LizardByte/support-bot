@@ -38,26 +38,24 @@ def discord_bot():
 @pytest.fixture(scope='function')
 def discord_db_users(discord_bot):
     with discord_bot.db as db:
-        db['discord_users'] = {
-            '939171917578002502': {
-                'discord_username': 'test_user',
-                'discord_global_name': 'Test User',
-                'github_id': 'test_user',
-                'github_username': 'test_user',
-                'roles': [
-                    'supporters',
-                ]
-            }
-        }
-        db['oauth_states'] = {'939171917578002502': 'valid_state'}
-        db.sync()  # Ensure the data is written to the shelve
+        users_table = db.table('discord_users')
+        users_table.insert({
+            'user_id': 939171917578002502,
+            'discord_username': 'test_user',
+            'discord_global_name': 'Test User',
+            'github_id': 123,
+            'github_username': 'test_user',
+            'roles': ['supporters']
+        })
+
+    discord_bot.oauth_states[939171917578002502] = 'valid_state'
 
     yield
 
+    # Clean up test data
     with discord_bot.db as db:
-        db['discord_users'] = {}
-        db['oauth_states'] = {}
-        db.sync()  # Ensure the data is written to the shelve
+        db.table('discord_users').truncate()
+    discord_bot.oauth_states.clear()
 
 
 @pytest.fixture(scope='function')

@@ -204,25 +204,33 @@ async def role_update_task(bot: Bot, test_mode: bool = False) -> bool:
     if datetime.now(UTC).minute not in list(range(0, 60, 10)):
         return False
 
-    # check each user in the database for their GitHub sponsor status
+    # Check each user in the database for their GitHub sponsor status
     with bot.db as db:
-        discord_users = db.get('discord_users', {})
+        users_table = db.table('discord_users')
+        discord_users = users_table.all()
 
+    # Return early if there are no users to process
     if not discord_users:
         return False
 
+    # Get the GitHub sponsors
     github_sponsors = sponsors.get_github_sponsors()
 
-    for user_id, user_data in discord_users.items():
-        # get the currently revocable roles, to ensure we don't remove roles that were added by another integration
+    # Process each user
+    for user_data in discord_users:
+        user_id = user_data.get('discord_id')
+        if not user_id:
+            continue
+
+        # Get the currently revocable roles, to ensure we don't remove roles that were added by another integration
         # i.e.; any role that was added by our bot is safe to remove
         revocable_roles = user_data.get('roles', []).copy()
 
-        # check if the user is a GitHub sponsor
+        # Check if the user is a GitHub sponsor
         for edge in github_sponsors['data']['organization']['sponsorshipsAsMaintainer']['edges']:
             sponsor = edge['node']['sponsorEntity']
-            if sponsor['login'] == user_data['github_username']:
-                # user is a sponsor
+            if sponsor['login'] == user_data.get('github_username'):
+                # User is a sponsor
                 user_data['github_sponsor'] = True
 
                 monthly_amount = edge['node'].get('tier', {}).get('monthlyPriceInDollars', 0)
@@ -236,14 +244,15 @@ async def role_update_task(bot: Bot, test_mode: bool = False) -> bool:
 
                 break
         else:
-            # user is not a sponsor
+            # User is not a sponsor
             user_data['github_sponsor'] = False
             user_data['roles'] = []
 
+        # Add GitHub user role if applicable
         if user_data.get('github_username'):
             user_data['roles'].append('github-user')
 
-        # update the discord user roles
+        # Update the discord user roles
         for g in bot.guilds:
             roles = g.roles
 
@@ -281,8 +290,9 @@ async def role_update_task(bot: Bot, test_mode: bool = False) -> bool:
                         remove_future = asyncio.run_coroutine_threadsafe(member.remove_roles(role), bot.loop)
                         remove_future.result()
 
-    with bot.db as db:
-        db['discord_users'] = discord_users
-        db.sync()
+        # Update the user in the database
+        with bot.db as db:
+            users_table = db.table('discord_users')
+            users_table.update(user_data, doc_ids=[user_data.get('doc_id')])
 
     return True

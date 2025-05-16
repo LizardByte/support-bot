@@ -6,7 +6,6 @@ from base64 import b64encode
 import inspect
 import json
 import os
-import shelve
 from unittest.mock import patch
 from urllib.parse import quote_plus
 
@@ -15,6 +14,7 @@ from betamax import Betamax, cassette
 from betamax_serializers.pretty_json import PrettyJSONSerializer
 from praw.config import _NotSet
 import pytest
+from tinydb import Query
 
 # local imports
 from src.reddit_bot.bot import Bot
@@ -119,7 +119,8 @@ class TestBot:
 
     @pytest.fixture(scope='session', autouse=True)
     def betamax_config(self, bot):
-        record_mode = 'none' if os.environ.get('GITHUB_PYTEST') else 'once'
+        record_mode = 'none' if os.environ.get('GITHUB_PYTEST', '').lower() == 'true' else 'once'
+        record_mode = 'all' if os.environ.get('FORCE_BETAMAX_UPDATE', '').lower() == 'true' else record_mode
 
         with Betamax.configure() as config:
             config.cassette_library_dir = 'tests/fixtures/cassettes'
@@ -144,16 +145,16 @@ class TestBot:
 
     @pytest.fixture(scope='session')
     def slash_command_comment(self, bot, recorder):
-        comment = bot.reddit.comment(id='l20s21b')
         with recorder.use_cassette(f'fixture_{inspect.currentframe().f_code.co_name}'):
+            comment = bot.reddit.comment(id='l20s21b')
             assert comment.body == '/sunshine vban'
 
         return comment
 
     @pytest.fixture(scope='session')
     def _submission(self, bot, recorder):
-        s = bot.reddit.submission(id='w03cku')
         with recorder.use_cassette(f'fixture_{inspect.currentframe().f_code.co_name}'):
+            s = bot.reddit.submission(id='w03cku')  # TODO: replace with a submission by LizardByte-bot
             assert s.author
 
         return s
@@ -169,44 +170,36 @@ class TestBot:
                 }):
             assert bot.validate_env()
 
-    def test_migrate_shelve(self, bot):
-        with patch.object(shelve, 'open') as mock_open:
-            bot.migrate_shelve()
-            mock_open.assert_called_once_with(bot.db)
-        with shelve.open(bot.db) as db:
-            assert db.get('comments') is not None
-            assert db.get('submissions') is not None
-
-    def test_migrate_last_online(self, bot):
-        f = os.path.join(bot.data_dir, 'last_online')
-        if not os.path.isfile(f):
-            with open(f, 'w') as file:
-                file.write('1234')
-        assert os.path.isfile(f)
-
-        bot.migrate_last_online()
-        assert not os.path.isfile(f)
-
     def test_process_comment(self, bot, recorder, request, slash_command_comment):
         with recorder.use_cassette(request.node.name):
             bot.process_comment(comment=slash_command_comment)
-        with bot.lock, shelve.open(bot.db) as db:
-            assert slash_command_comment.id in db['comments']
-            assert db['comments'][slash_command_comment.id]['author'] == str(slash_command_comment.author)
-            assert db['comments'][slash_command_comment.id]['body'] == slash_command_comment.body
-            assert db['comments'][slash_command_comment.id]['processed']
-            assert db['comments'][slash_command_comment.id]['slash_command']['project'] == 'sunshine'
-            assert db['comments'][slash_command_comment.id]['slash_command']['command'] == 'vban'
+
+        with bot.db as db:
+            comments_table = db.table('comments')
+            c = Query()
+            comment_data = comments_table.get(c.reddit_id == slash_command_comment.id)
+
+            assert comment_data is not None
+            assert comment_data['author'] == str(slash_command_comment.author)
+            assert comment_data['body'] == slash_command_comment.body
+            assert comment_data['processed']
+            assert comment_data['slash_command']['project'] == 'sunshine'
+            assert comment_data['slash_command']['command'] == 'vban'
 
     def test_process_submission(self, bot, discord_bot, recorder, request, _submission):
         with recorder.use_cassette(request.node.name):
             bot.process_submission(submission=_submission)
-        with bot.lock, shelve.open(bot.db) as db:
-            assert _submission.id in db['submissions']
-            assert db['submissions'][_submission.id]['author'] == str(_submission.author)
-            assert db['submissions'][_submission.id]['title'] == _submission.title
-            assert db['submissions'][_submission.id]['bot_discord']['sent'] is True
-            assert db['submissions'][_submission.id]['bot_discord']['sent_utc']
+
+        with bot.db as db:
+            submissions_table = db.table('submissions')
+            s = Query()
+            submission_data = submissions_table.get(s.reddit_id == _submission.id)
+
+            assert submission_data is not None
+            assert submission_data['author'] == str(_submission.author)
+            assert submission_data['title'] == _submission.title
+            assert submission_data['bot_discord']['sent'] is True
+            assert 'sent_utc' in submission_data['bot_discord']
 
     def test_comment_loop(self, bot, recorder, request):
         with recorder.use_cassette(request.node.name):

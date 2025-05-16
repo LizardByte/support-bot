@@ -75,14 +75,14 @@ def test_discord_callback_success(test_client, mocker, discord_db_users):
     mocker.patch('src.common.webapp.OAuth2Session.fetch_token', return_value={'access_token': 'fake_token'})
     mocker.patch('src.common.webapp.OAuth2Session.get', side_effect=[
         Mock(json=lambda: {
-            'id': '939171917578002502',
+            'id': 939171917578002502,
             'username': 'discord_user',
             'global_name': 'discord_global_name',
         }),
         Mock(json=lambda: [
             {
                 'type': 'github',
-                'id': 'github_user_id',
+                'id': '123',
                 'name': 'github_user_login',
             }
         ])
@@ -143,11 +143,11 @@ def test_github_callback_success(test_client, mocker, discord_db_users):
     mocker.patch('src.common.webapp.OAuth2Session.fetch_token', return_value={'access_token': 'fake_token'})
     mocker.patch('src.common.webapp.OAuth2Session.get', side_effect=[
         Mock(json=lambda: {
-            'id': 'github_user_id',
+            'id': '123',
             'login': 'github_user_login',
         }),
         Mock(json=lambda: {
-            'id': 'github_user_id',
+            'id': '123',
             'login': 'github_user_login',
         })
     ])
@@ -171,7 +171,7 @@ def test_github_callback_invalid_state(test_client, mocker, discord_db_users):
 
     mocker.patch('src.common.webapp.OAuth2Session.fetch_token', return_value={'access_token': 'fake_token'})
     mocker.patch('src.common.webapp.OAuth2Session.get', return_value=Mock(json=lambda: {
-        'id': 'github_user_id',
+        'id': '123',
         'login': 'github_user_login',
     }))
 
