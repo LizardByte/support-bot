@@ -26,7 +26,6 @@ def discord_bot():
         time.sleep(1)
 
     bot.role_update_task.stop()
-    bot.daily_task.stop()
     bot.clean_ephemeral_cache.stop()
 
     yield bot

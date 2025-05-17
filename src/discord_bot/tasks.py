@@ -2,19 +2,14 @@
 import asyncio
 import copy
 from datetime import datetime, UTC
-import json
-import os
 
 # lib imports
 import discord
 from discord.ext import tasks
-from igdb.wrapper import IGDBWrapper
 
 # local imports
-from src.common.common import avatar, bot_name, bot_url, colors
 from src.common import sponsors
 from src.discord_bot.bot import Bot
-from src.discord_bot.helpers import igdb_authorization, month_dictionary
 
 
 @tasks.loop(seconds=30)
@@ -28,155 +23,6 @@ async def clean_ephemeral_cache(bot: Bot) -> bool:
     for key, value in copy.deepcopy(bot.ephemeral_db.get('github_cache_context', {})).items():
         if value['expires_at'] < datetime.now(UTC):
             bot.update_cached_message(author_id=int(key), reason='timeout')
-
-    return True
-
-
-@tasks.loop(minutes=60.0)
-async def daily_task(bot: Bot) -> bool:
-    """
-    Run daily task loop.
-
-    This function runs on a schedule, every 60 minutes. Create an embed and thread for each game released
-    on this day in history (according to IGDB), if enabled.
-
-    Returns
-    -------
-    bool
-        True if the task ran successfully, False otherwise.
-    """
-    date = datetime.now(UTC)
-    if date.hour != int(os.getenv(key='DAILY_TASKS_UTC_HOUR', default=12)):
-        return False
-
-    daily_releases = True if os.getenv(key='DAILY_RELEASES', default='true').lower() == 'true' else False
-    if not daily_releases:
-        print("'DAILY_RELEASES' environment variable is disabled")
-        return False
-
-    try:
-        channel_id = int(os.environ['DAILY_CHANNEL_ID'])
-    except KeyError:
-        print("'DAILY_CHANNEL_ID' not defined in environment variables.")
-        return False
-
-    igdb_auth = igdb_authorization(client_id=os.environ['IGDB_CLIENT_ID'],
-                                   client_secret=os.environ['IGDB_CLIENT_SECRET'])
-    wrapper = IGDBWrapper(client_id=os.environ['IGDB_CLIENT_ID'], auth_token=igdb_auth['access_token'])
-
-    end_point = 'release_dates'
-    fields = [
-        'human',
-        'game.name',
-        'game.summary',
-        'game.url',
-        'game.genres.name',
-        'game.rating',
-        'game.cover.url',
-        'game.artworks.url',
-        'game.platforms.name',
-        'game.platforms.url'
-    ]
-
-    where = f'human="{month_dictionary[date.month]} {date.day:02d}"*'
-    limit = 500
-    query = f'fields {", ".join(fields)}; where {where}; limit {limit};'
-
-    byte_array = bytes(wrapper.api_request(endpoint=end_point, query=query))
-    json_result = json.loads(byte_array)
-
-    game_ids = []
-
-    for game in json_result:
-        try:
-            game_id = game['game']['id']
-        except KeyError:
-            continue
-
-        if game_id in game_ids:
-            continue  # do not repeat the same game... even though it could be a different platform
-        game_ids.append(game_id)
-
-        try:
-            embed = discord.Embed(
-                title=game['game']['name'],
-                url=game['game']['url'],
-                description=game['game']['summary'][0:2000 - 1],
-                color=colors['purple']
-            )
-        except KeyError:
-            continue
-
-        try:
-            rating = round(game['game']['rating'] / 20, 1)
-            embed.add_field(
-                name='Average Rating',
-                value=f'⭐{rating}',
-                inline=True
-            )
-        except KeyError:
-            continue
-        if rating < 4.0:  # reduce the number of messages per day
-            continue
-
-        try:
-            embed.add_field(
-                name='Release Date',
-                value=game['human'],
-                inline=True
-            )
-        except KeyError:
-            pass
-
-        try:
-            embed.set_thumbnail(url=f"https:{game['game']['cover']['url'].replace('_thumb', '_original')}")
-        except KeyError:
-            pass
-
-        try:
-            embed.set_image(url=f"https:{game['game']['artworks'][0]['url'].replace('_thumb', '_original')}")
-        except KeyError:
-            pass
-
-        try:
-            platforms = ', '.join(platform['name'] for platform in game['game']['platforms'])
-            name = 'Platforms' if len(game['game']['platforms']) > 1 else 'Platform'
-
-            embed.add_field(
-                name=name,
-                value=platforms,
-                inline=False
-            )
-        except KeyError:
-            pass
-
-        try:
-            genres = ', '.join(genre['name'] for genre in game['game']['genres'])
-            name = 'Genres' if len(game['game']['genres']) > 1 else 'Genre'
-
-            embed.add_field(
-                name=name,
-                value=genres,
-                inline=False
-            )
-        except KeyError:
-            pass
-
-        embed.set_author(
-            name=bot_name,
-            url=bot_url,
-            icon_url=avatar
-        )
-
-        embed.set_footer(
-            text='Data provided by IGDB',
-            icon_url='https://www.igdb.com/favicon-196x196.png'
-        )
-
-        message = bot.send_message(channel_id=channel_id, embed=embed)
-        thread = bot.create_thread(message=message, name=embed.title)
-
-        print(f'thread created: {thread.name}')
 
     return True
 

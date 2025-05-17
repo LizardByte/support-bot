@@ -40,7 +40,6 @@ class Bot(discord.Bot):
         self.ephemeral_db = {}
         self.oauth_states = {}
         self.clean_ephemeral_cache = tasks.clean_ephemeral_cache
-        self.daily_task = tasks.daily_task
         self.role_update_task = tasks.role_update_task
 
         self.load_extension(
@@ -73,16 +72,6 @@ class Bot(discord.Bot):
 
         self.clean_ephemeral_cache.start(bot=self)
         self.role_update_task.start(bot=self)
-
-        try:
-            os.environ['DAILY_TASKS']
-        except KeyError:
-            self.daily_task.start(bot=self)
-        else:
-            if os.environ['DAILY_TASKS'].lower() == 'true':
-                self.daily_task.start(bot=self)
-            else:
-                print("'DAILY_TASKS' environment variable is disabled")
 
         await self.sync_commands()
 
@@ -284,7 +273,6 @@ class Bot(discord.Bot):
     def stop(self, future: asyncio.Future = None):
         print("Attempting to stop tasks")
         self.DEGRADED = True
-        self.daily_task.stop()
         self.role_update_task.stop()
         self.clean_ephemeral_cache.stop()
         print("Attempting to close bot connection")
