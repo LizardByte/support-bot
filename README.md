@@ -39,10 +39,6 @@ platforms such as GitHub discussions/issues might be added in the future.
 
 | variable                         | required | default                                              | description                                                                                |
 |----------------------------------|----------|------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| DAILY_TASKS                      | False    | `true`                                               | Daily tasks on or off.                                                                     |
-| DAILY_RELEASES                   | False    | `true`                                               | Send a message for each game released on this day in history.                              |
-| DAILY_CHANNEL_ID                 | False    | `None`                                               | Required if daily_tasks is enabled.                                                        |
-| DAILY_TASKS_UTC_HOUR             | False    | `12`                                                 | The hour to run daily tasks.                                                               |
 | DATA_REPO                        | False    | `https://github.com/LizardByte/support-bot-data`     | Repository to store persistent data. This repository should be private!                    |
 | DATA_REPO_BRANCH                 | False    | `master`                                             | Branch to store persistent data.                                                           |
 | DISCORD_BOT_TOKEN                | True     | `None`                                               | Token from Bot page on discord developer portal.                                           |
@@ -61,8 +57,6 @@ platforms such as GitHub discussions/issues might be added in the future.
 | GITHUB_TOKEN                     | True     | `None`                                               | GitHub personal access token. Must have `read:org`                                         |
 | GITHUB_WEBHOOK_SECRET_KEY        | True     | `None`                                               | A secret value to ensure webhooks are from trusted sources.                                |
 | GRAVATAR_EMAIL                   | False    | `None`                                               | Gravatar email address for bot avatar.                                                     |
-| IGDB_CLIENT_ID                   | False    | `None`                                               | Required if daily_releases is enabled.                                                     |
-| IGDB_CLIENT_SECRET               | False    | `None`                                               | Required if daily_releases is enabled.                                                     |
 | PRAW_CLIENT_ID                   | True     | `None`                                               | `client_id` from reddit app setup page.                                                    |
 | PRAW_CLIENT_SECRET               | True     | `None`                                               | `client_secret` from reddit app setup page.                                                |
 | PRAW_SUBREDDIT                   | True     | `None`                                               | Subreddit to monitor (reddit user should be moderator of the subreddit)                    |
