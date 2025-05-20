@@ -8,7 +8,7 @@ from typing import Union
 
 # lib imports
 import git
-from tinydb import TinyDB
+from tinydb import TinyDB, Query
 from tinydb.storages import JSONStorage
 from tinydb.middlewares import CachingMiddleware
 
@@ -17,6 +17,7 @@ from src.common.common import data_dir
 
 # Constants
 DATA_REPO_LOCK = threading.Lock()
+GIT_ENABLED = True  # disable to pause pushing to git, useful for heavy db operations
 
 
 class Database:
@@ -274,50 +275,81 @@ class Database:
         return self.tinydb
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.sync()
-        self.lock.release()
+        try:
+            self.sync()
+        finally:
+            self.lock.release()
 
     def sync(self):
-        # Only call flush if using CachingMiddleware
-        if hasattr(self.tinydb.storage, 'flush'):
-            self.tinydb.storage.flush()
+        try:
+            # Flush changes to disk if possible
+            if self.tinydb and hasattr(self.tinydb.storage, 'flush'):
+                self.tinydb.storage.flush()
 
-        # Git operations - commit and push changes if using git
-        with DATA_REPO_LOCK:
-            if self.use_git and self.repo is not None:
-                try:
-                    # Check for untracked database files and tracked files with changes
-                    status = self.repo.git.status('--porcelain')
+            # Close the database to ensure file is available for Git operations
+            if self.tinydb is not None:
+                self.tinydb.close()
+                self.tinydb = None
 
-                    # If there are any changes or untracked files
-                    if status:
-                        # Add ALL json files in the directory to ensure we track all databases
-                        json_files = [f for f in os.listdir(self.db_dir) if f.endswith('.json')]
-                        if json_files:
-                            for json_file in json_files:
-                                file_path = os.path.join(self.db_dir, json_file)
-                                self.repo.git.add(file_path)
+            # Git operations with closed file
+            with DATA_REPO_LOCK:
+                if self.use_git and self.repo is not None and GIT_ENABLED:
+                    try:
+                        # Check for untracked database files and tracked files with changes
+                        status = self.repo.git.status('--porcelain')
 
-                        # Check if we have anything to commit after adding
-                        if self.repo.git.status('--porcelain'):
-                            # Ensure the repository is configured with user identity
-                            self._configure_repo()
+                        # If there are any changes or untracked files
+                        if status:
+                            # Add ALL json files in the directory to ensure we track all databases
+                            json_files = [f for f in os.listdir(self.db_dir) if f.endswith('.json')]
+                            if json_files:
+                                for json_file in json_files:
+                                    file_path = os.path.join(self.db_dir, json_file)
+                                    self.repo.git.add(file_path)
 
-                            # Commit all changes at once with a general message
-                            commit_message = "Update database files"
-                            self.repo.git.commit('-m', commit_message)
-                            print("Committed changes to git data repository")
+                            # Check if we have anything to commit after adding
+                            if self.repo.git.status('--porcelain'):
+                                # Ensure the repository is configured with user identity
+                                self._configure_repo()
 
-                            # Push to remote with credentials
-                            try:
-                                # Ensure we're using the credentials for push
-                                protocol, repo_path = self.repo_url.split("://", 1)
-                                push_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
-                                self.repo.git.push(push_url, self.repo_branch)
-                                print("Pushed changes to remote git data repository")
-                            except git.exc.GitCommandError as e:
-                                print(f"Failed to push changes: {str(e)}")
+                                # Commit all changes at once with a general message
+                                commit_message = "Update database files"
+                                self.repo.git.commit('-m', commit_message)
+                                print("Committed changes to git data repository")
 
-                except Exception as e:
-                    print(f"Git operation failed: {str(e)}")
-                    traceback.print_exc()
+                                # Push to remote with credentials
+                                try:
+                                    # Ensure we're using the credentials for push
+                                    protocol, repo_path = self.repo_url.split("://", 1)
+                                    push_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
+                                    self.repo.git.push(push_url, self.repo_branch)
+                                    print("Pushed changes to remote git data repository")
+                                except git.exc.GitCommandError as e:
+                                    print(f"Failed to push changes: {str(e)}")
+
+                    except Exception as e:
+                        print(f"Git operation failed: {str(e)}")
+                        traceback.print_exc()
+        finally:
+            # Ensure database is ready for next use
+            if self.tinydb is None:
+                self.tinydb = TinyDB(
+                    self.json_path,
+                    storage=CachingMiddleware(JSONStorage),
+                    indent=4,
+                )
+
+    @staticmethod
+    def query():
+        """
+        Get the TinyDB Query object for constructing database queries.
+
+        This is a helper method to avoid importing the Query class directly
+        in modules that use the Database class.
+
+        Returns
+        -------
+        Query
+            A TinyDB Query object for constructing queries.
+        """
+        return Query()
