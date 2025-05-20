@@ -14,7 +14,6 @@ from betamax import Betamax, cassette
 from betamax_serializers.pretty_json import PrettyJSONSerializer
 from praw.config import _NotSet
 import pytest
-from tinydb import Query
 
 # local imports
 from src.reddit_bot.bot import Bot
@@ -114,7 +113,7 @@ class TestBot:
     @pytest.fixture(scope='session')
     def bot(self):
         return Bot(
-            user_agent='Test suite',
+            user_agent='praw:dev.lizardbyte.app.support-bot.test-suite:v1 (by /r/LizardByte)',
         )
 
     @pytest.fixture(scope='session', autouse=True)
@@ -154,7 +153,7 @@ class TestBot:
     @pytest.fixture(scope='session')
     def _submission(self, bot, recorder):
         with recorder.use_cassette(f'fixture_{inspect.currentframe().f_code.co_name}'):
-            s = bot.reddit.submission(id='w03cku')  # TODO: replace with a submission by LizardByte-bot
+            s = bot.reddit.submission(id='vuoiqg')
             assert s.author
 
         return s
@@ -176,8 +175,8 @@ class TestBot:
 
         with bot.db as db:
             comments_table = db.table('comments')
-            c = Query()
-            comment_data = comments_table.get(c.reddit_id == slash_command_comment.id)
+            q = bot.db.query()
+            comment_data = comments_table.get(q.reddit_id == slash_command_comment.id)
 
             assert comment_data is not None
             assert comment_data['author'] == str(slash_command_comment.author)
@@ -192,8 +191,8 @@ class TestBot:
 
         with bot.db as db:
             submissions_table = db.table('submissions')
-            s = Query()
-            submission_data = submissions_table.get(s.reddit_id == _submission.id)
+            q = bot.db.query()
+            submission_data = submissions_table.get(q.reddit_id == _submission.id)
 
             assert submission_data is not None
             assert submission_data['author'] == str(_submission.author)

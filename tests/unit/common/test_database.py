@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 # lib imports
 import pytest
+from tinydb import JSONStorage, TinyDB
+from tinydb.middlewares import CachingMiddleware
 
 # local imports
 from src.common.database import Database
@@ -77,16 +79,51 @@ class TestDatabase:
             assert data[0]["test"] == "data"
 
     def test_sync_method(self, db_init, cleanup_files):
-        """Test sync method flushes data to disk."""
+        """Test sync method flushes data to disk, closes and reopens database."""
         db = Database(
             db_name=f'db_{inspect.currentframe().f_code.co_name}',
             db_dir=db_init['db_dir'],
             use_git=db_init['use_git'],
         )
 
+        # Get the original TinyDB instance
+        original_tinydb = db.tinydb
+
+        # Create a test record to verify persistence
+        with db as tinydb:
+            tinydb.insert({"test_before_sync": "data"})
+
+        # Create a real TinyDB instance to return from the mock
+        new_db = TinyDB(
+            db.json_path,
+            storage=CachingMiddleware(JSONStorage),
+            indent=4,
+        )
+
+        # Setup the mocks - correctly patching the TinyDB constructor
         with patch.object(db.tinydb.storage, 'flush') as mock_flush:
-            db.sync()
-            mock_flush.assert_called_once()
+            with patch.object(db.tinydb, 'close') as mock_close:
+                # Use __name__ to get the fully qualified name including module
+                with patch('src.common.database.TinyDB', return_value=new_db) as mock_tinydb:
+                    # Call sync method
+                    db.sync()
+
+                    # Verify the sequence of operations
+                    mock_flush.assert_called_once()
+                    mock_close.assert_called_once()
+                    mock_tinydb.assert_called_once()
+
+        # Verify database is still usable after sync
+        assert db.tinydb is not None
+        assert db.tinydb is not original_tinydb
+
+        # Verify we can still use the database and data persisted
+        with db as tinydb:
+            existing_data = tinydb.all()
+            assert any(record.get("test_before_sync") == "data" for record in existing_data)
+
+            # Add new data to verify database is functional
+            tinydb.insert({"test_after_sync": "new_data"})
 
     @staticmethod
     def create_test_shelve(shelve_path):

@@ -1,102 +1,7 @@
 {
   "http_interactions": [
     {
-      "recorded_at": "2024-05-01T02:35:44",
-      "request": {
-        "body": {
-          "encoding": "utf-8",
-          "string": "grant_type=password&password=<PASSWORD>&username=<USERNAME>"
-        },
-        "headers": {
-          "Accept": [
-            "*/*"
-          ],
-          "Accept-Encoding": [
-            "identity"
-          ],
-          "Authorization": [
-            "Basic <BASIC_AUTH>"
-          ],
-          "Connection": [
-            "close"
-          ],
-          "Content-Length": [
-            "69"
-          ],
-          "Content-Type": [
-            "application/x-www-form-urlencoded"
-          ],
-          "User-Agent": [
-            "Test suite PRAW/7.7.1 prawcore/2.4.0"
-          ]
-        },
-        "method": "POST",
-        "uri": "https://www.reddit.com/api/v1/access_token"
-      },
-      "response": {
-        "body": {
-          "encoding": "UTF-8",
-          "string": "{\"access_token\": \"<ACCESS_TOKEN>\", \"token_type\": \"bearer\", \"expires_in\": 86400, \"scope\": \"*\"}"
-        },
-        "headers": {
-          "Accept-Ranges": [
-            "bytes"
-          ],
-          "Cache-Control": [
-            "private, max-age=3600"
-          ],
-          "Connection": [
-            "close"
-          ],
-          "Content-Length": [
-            "848"
-          ],
-          "Date": [
-            "Wed, 01 May 2024 02:35:44 GMT"
-          ],
-          "NEL": [
-            "{\"report_to\": \"w3-reporting-nel\", \"max_age\": 14400, \"include_subdomains\": false, \"success_fraction\": 1.0, \"failure_fraction\": 1.0}"
-          ],
-          "Report-To": [
-            "{\"group\": \"w3-reporting-nel\", \"max_age\": 14400, \"include_subdomains\": true,  \"endpoints\": [{ \"url\": \"https://w3-reporting-nel.reddit.com/reports\" }]}, {\"group\": \"w3-reporting\", \"max_age\": 14400, \"include_subdomains\": true, \"endpoints\": [{ \"url\": \"https://w3-reporting.reddit.com/reports\" }]}, {\"group\": \"w3-reporting-csp\", \"max_age\": 14400, \"include_subdomains\": true, \"endpoints\": [{ \"url\": \"https://w3-reporting-csp.reddit.com/reports\" }]}"
-          ],
-          "Server": [
-            "snooserv"
-          ],
-          "Set-Cookie": [
-            "edgebucket=ELOnVL1mGMbsRlea17; Domain=reddit.com; Max-Age=63071999; Path=/;  secure"
-          ],
-          "Strict-Transport-Security": [
-            "max-age=31536000; includeSubdomains"
-          ],
-          "Vary": [
-            "accept-encoding, Accept-Encoding"
-          ],
-          "Via": [
-            "1.1 varnish"
-          ],
-          "X-Content-Type-Options": [
-            "nosniff"
-          ],
-          "X-Frame-Options": [
-            "SAMEORIGIN"
-          ],
-          "X-XSS-Protection": [
-            "1; mode=block"
-          ],
-          "content-type": [
-            "application/json; charset=UTF-8"
-          ]
-        },
-        "status": {
-          "code": 200,
-          "message": "OK"
-        },
-        "url": "https://www.reddit.com/api/v1/access_token"
-      }
-    },
-    {
-      "recorded_at": "2024-05-01T02:35:44",
+      "recorded_at": "2025-05-20T23:55:36",
       "request": {
         "body": {
           "encoding": "utf-8",
@@ -110,16 +15,16 @@
             "identity"
           ],
           "Authorization": [
-            "bearer <ACCESS_TOKEN>"
+            "bearer <BEARER_TOKEN>"
           ],
           "Connection": [
             "keep-alive"
           ],
           "Cookie": [
-            "edgebucket=ELOnVL1mGMbsRlea17"
+            "edgebucket=cGQBeoc7cndeJ4CRKq; loid=0000000000ps86k4yd.2.1657372729000.Z0FBQUFBQm9MUloyS0I2R2FDQXcyaEJuOGRzNy1mTFBNUEJramszdUYzbkNYTDFEUGg0bEFZMTU1eldXNllmUklURllvWlVqNlhKQ1NnVzdFMnU4QXA3T2hkejNRMGRiTl9rY0YxYkVQcVdqSEo1eEs3enNSejloSk8zem5yejUyN2NSWUIyaGpUU3I; session_tracker=adhdnlqbpoljraclbh.0.1747785334238.Z0FBQUFBQm9MUloybmtfd1Q2UVNaeUl1Z2tXVEVSMEp6QXdDUjdqTzh1eWJBWEd6OUdVRXFYd1NxSWVkc2lGWkU1SUNGLUsyUGpTNklnMG5YVm5tMll5VHUzcGFNOC1MOHlNamRDZnRGdVUzbk5pc3NESGI1NjhwZFNvVHZrWFBPX1dObjU3bTEyTlk; csv=2"
           ],
           "User-Agent": [
-            "Test suite PRAW/7.7.1 prawcore/2.4.0"
+            "praw:dev.lizardbyte.app.support-bot.test-suite:v1 (by /r/LizardByte) PRAW/7.8.1 prawcore/2.4.0"
           ]
         },
         "method": "GET",
@@ -141,7 +46,7 @@
             "2037"
           ],
           "Date": [
-            "Wed, 01 May 2024 02:35:44 GMT"
+            "Tue, 20 May 2025 23:55:36 GMT"
           ],
           "NEL": [
             "{\"report_to\": \"w3-reporting-nel\", \"max_age\": 14400, \"include_subdomains\": false, \"success_fraction\": 1.0, \"failure_fraction\": 1.0}"
@@ -153,9 +58,7 @@
             "snooserv"
           ],
           "Set-Cookie": [
-            "loid=0000000000ps86k4yd.2.1657372729000.Z0FBQUFBQm1NYXFBTjF6QmZOUlBkTVRNQUNPdVZNUkxPQkMwY0VRakJfZ09pMVBjNkdVdTRTVVl2YURRanFFQUJXcklpVnZEeU1NXzlNRS03Y1ppOXQxMkpOckhMa1ozem5IMkc5SnZxWjVrV0lwSmZKUDFFSm55MXo5STM3MDNTVDQzdU1ZazRQZVM; Domain=reddit.com; Max-Age=63071999; Path=/; expires=Fri, 01-May-2026 02:35:44 GMT; secure; SameSite=None; Secure",
-            "session_tracker=goeleipgnjpgmqklcp.0.1714530944660.Z0FBQUFBQm1NYXFBcFRER1ZtRGdHYkVrSUpZQ1JmVTUwNkVWWDNzNzBKSUQtQnVsZ2JHTVladHNsLU5xSFB4SG9hVlZ4YTNQTWZHcDFBek00QlY0Q1V5WTY3cUpfV2ZvU0lBMEZLaXItbGFnTkItVzBMcEtoX2l1eUQyS1BtdS02d19tS1N4WVVKbzI; Domain=reddit.com; Max-Age=7199; Path=/; expires=Wed, 01-May-2024 04:35:44 GMT; secure; SameSite=None; Secure",
-            "csv=2; Max-Age=63072000; Domain=.reddit.com; Path=/; Secure; SameSite=None"
+            "session_tracker=adhdnlqbpoljraclbh.0.1747785336843.Z0FBQUFBQm9MUlo0QTk1WEpOb2VFVUM4cVZkb0pWbFBDVm51RHM2N3dsNzVia2EtRDhBSkZGa2FBOWFoMWVuQm44ZFo1NHp2QXZTeEVWblNjWU1CeUMxYUE4WnZ6dml4NDhHeVNUS3lwRUpUWDh1NzJDRXl1MGh3Q3RLZF9XVzNaVmxlajJMX1lST3I; Domain=reddit.com; Max-Age=7199; Path=/; expires=Wed, 21-May-2025 01:55:36 GMT; secure; SameSite=None; Secure"
           ],
           "Strict-Transport-Security": [
             "max-age=31536000; includeSubdomains"
@@ -185,13 +88,13 @@
             "-1"
           ],
           "x-ratelimit-remaining": [
-            "954"
+            "940.0"
           ],
           "x-ratelimit-reset": [
-            "256"
+            "263"
           ],
           "x-ratelimit-used": [
-            "42"
+            "60"
           ],
           "x-ua-compatible": [
             "IE=edge"
