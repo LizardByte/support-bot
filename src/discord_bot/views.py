@@ -26,17 +26,39 @@ class DocsCommandDefaultProjects:
     def __init__(self):
         self.projects = get_json(url='https://app.lizardbyte.dev/dashboard/readthedocs/projects.json')
         self.projects_options = []
+        # Track used values to prevent duplicates
+        used_values = set()
+        self.value_to_project_map = {}
+
+        counter = 0
         for project in self.projects:
             try:
                 parent_project = project['subproject_of']['name']
             except (KeyError, TypeError):
                 parent_project = None
 
+            # Extract repository name to use as value
+            original_value = project['repository']['url'].rsplit('/', 1)[-1].rsplit('.git', 1)[0]
+            value = original_value
+
+            # make sure the value is unique
+            value = f"{original_value}-{counter}"
+
+            # Add to used values set
+            used_values.add(value)
+
+            # Store mapping of modified value to original project identifier
+            self.value_to_project_map[value] = original_value
+
             self.projects_options.append(
-                discord.SelectOption(label=project['name'],
-                                     value=project['repository']['url'].rsplit('/', 1)[-1].rsplit('.git', 1)[0],
-                                     description=f"Subproject of {parent_project}" if parent_project else None)
+                discord.SelectOption(
+                    label=project['name'],
+                    value=value,
+                    description=f"Subproject of {parent_project}" if parent_project else None
+                )
             )
+
+            counter += 1
 
 
 class DocsCommandView(discord.ui.View):
@@ -62,8 +84,12 @@ class DocsCommandView(discord.ui.View):
         self.docs_project = None
         self.docs_version = None
 
+        # Create projects and store the mapping
+        projects_handler = DocsCommandDefaultProjects()
+        self.project_value_map = projects_handler.value_to_project_map
+
         # reset the first select menu because it remembers the last selected value
-        self.children[0].options = DocsCommandDefaultProjects().projects_options
+        self.children[0].options = projects_handler.projects_options
 
     # check selections completed
     def check_completion_status(self) -> Tuple[bool, discord.Embed]:
@@ -175,7 +201,10 @@ class DocsCommandView(discord.ui.View):
                     child.options = [discord.SelectOption(label='0')]
 
                     if child == self.children[1]:  # choose docs version
-                        readthedocs = self.children[0].values[0]
+                        selected_value = self.children[0].values[0]
+
+                        # Get the original project identifier from the mapping
+                        readthedocs = self.project_value_map.get(selected_value, selected_value)
 
                         versions = get_json(
                             url=f'https://app.lizardbyte.dev/dashboard/readthedocs/versions/{readthedocs}.json')
@@ -189,7 +218,7 @@ class DocsCommandView(discord.ui.View):
                                     description=f"Docs for {version['slug']} {version['type']}"
                                 ))
 
-                        child.options = options
+                        child.options = options[:25]  # limit to 25 options
 
             index += 1
 
