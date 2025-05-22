@@ -99,18 +99,19 @@ class ModeratorCommandsCog(discord.Cog):
         ctx : discord.ApplicationContext
             Request message context.
         """
+        await ctx.defer(ephemeral=True)
+
         now = time.time()
-        msg = await ctx.respond("Syncing commands...", ephemeral=True)
         await self.bot.sync_commands(
             force=True,
             guild_ids=[ctx.guild_id],
         )
         duration = int(time.time() - now)
-        await msg.edit(content="""Synced commands!
+        await ctx.respond("""Synced commands!
 
 Sync duration: {}s
 Commands not showing up? Try restarting discord or clearing cache.
-""".format(duration))
+""".format(duration), ephemeral=True)
 
     @mod_commands.command(
         name="user-info",
@@ -135,33 +136,34 @@ Commands not showing up? Try restarting discord or clearing cache.
         user : discord.User
             User to get information about.
         """
-        user = user or ctx.author
+        target_user = user or ctx.author
         embed = discord.Embed(
             fields=[
-                discord.EmbedField(name="ID", value=str(user.id), inline=False),  # User ID
+                discord.EmbedField(name="ID", value=str(target_user.id), inline=False),  # User ID
                 discord.EmbedField(
                     name="Joined Discord at",
-                    value=f'{discord.utils.format_dt(user.created_at, "R")}\n'
-                          f'{discord.utils.format_dt(user.created_at, "F")}',
+                    value=f'{discord.utils.format_dt(target_user.created_at, "R")}\n'
+                          f'{discord.utils.format_dt(target_user.created_at, "F")}',
                     inline=False,
                 ),  # When the user's account was created
             ],
         )
-        embed.set_author(name=user.name)
-        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.set_author(name=target_user.name)
+        embed.set_thumbnail(url=target_user.display_avatar.url)
 
-        embed.colour = user.color if user.color.value else colors['white']
+        embed.colour = target_user.color if target_user.color.value else colors['white']
 
         with self.bot.db as db:
-            user_data = db.get('discord_users', {}).get(str(user.id))
-            if user_data and user_data.get('github_username'):
+            users_table = db.table('discord_users')
+            user_doc = users_table.get(self.bot.db.query().id == str(target_user.id))
+            if user_doc and user_doc.get('github_username'):
                 embed.add_field(
                     name="GitHub",
-                    value=f"[{user_data['github_username']}](https://github.com/{user_data['github_username']})",
+                    value=f"[{user_doc['github_username']}](https://github.com/{user_doc['github_username']})",
                     inline=False,
                 )
 
-        if isinstance(user, discord.User):  # Checks if the user in the server
+        if isinstance(target_user, discord.User):  # Checks if the user in the server
             embed.set_footer(text="This user is not in this server.")
             await ctx.respond(embeds=[embed])
             return
@@ -169,13 +171,13 @@ Commands not showing up? Try restarting discord or clearing cache.
         # We end up here if the user is a discord.Member object
         embed.add_field(
             name="Joined Server at",
-            value=f'{discord.utils.format_dt(user.joined_at, "R")}\n'
-                  f'{discord.utils.format_dt(user.joined_at, "F")}',
+            value=f'{discord.utils.format_dt(target_user.joined_at, "R")}\n'
+                  f'{discord.utils.format_dt(target_user.joined_at, "F")}',
             inline=False,
         )  # When the user joined the server
 
         # get User Roles
-        roles = [role.name for role in user.roles]
+        roles = [role.name for role in target_user.roles]
         roles.pop(0)  # remove @everyone role
         embed.add_field(
             name="Server Roles",
@@ -185,11 +187,11 @@ Commands not showing up? Try restarting discord or clearing cache.
 
         # get User Status, such as Server Owner, Server Moderator, Server Admin, etc.
         user_status = []
-        if user.guild.owner_id == user.id:
+        if target_user.guild.owner_id == target_user.id:
             user_status.append("Server Owner")
-        if user.guild_permissions.administrator:
+        if target_user.guild_permissions.administrator:
             user_status.append("Server Admin")
-        if user.guild_permissions.manage_guild:
+        if target_user.guild_permissions.manage_guild:
             user_status.append("Server Moderator")
         embed.add_field(
             name="User Status",
@@ -197,9 +199,9 @@ Commands not showing up? Try restarting discord or clearing cache.
             inline=False,
         )
 
-        if user.premium_since:  # If the user is boosting the server
-            boosting_value = (f'{discord.utils.format_dt(user.premium_since, "R")}\n'
-                              f'{discord.utils.format_dt(user.premium_since, "F")}')
+        if target_user.premium_since:  # If the user is boosting the server
+            boosting_value = (f'{discord.utils.format_dt(target_user.premium_since, "R")}\n'
+                              f'{discord.utils.format_dt(target_user.premium_since, "F")}')
         else:
             boosting_value = "Not boosting"
         embed.add_field(
