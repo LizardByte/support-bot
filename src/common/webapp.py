@@ -9,7 +9,6 @@ from typing import Tuple
 import discord
 from flask import Flask, jsonify, redirect, request, Response, send_from_directory
 from requests_oauthlib import OAuth2Session
-from tinydb import Query
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # local imports
@@ -159,16 +158,16 @@ def discord_callback():
             user_data['github_id'] = int(connection['id'])
             user_data['github_username'] = connection['name']
 
-    with globals.DISCORD_BOT.db as db:
-        query = Query()
+    q = globals.DISCORD_BOT.db.query()
 
+    with globals.DISCORD_BOT.db as db:
         # Get the discord_users table
         discord_users_table = db.table('discord_users')
 
         # Upsert the user data
         discord_users_table.upsert(
             user_data,
-            query.user_id == int(discord_user['id'])
+            q.user_id == int(discord_user['id'])
         )
 
     globals.DISCORD_BOT.update_cached_message(
@@ -226,9 +225,9 @@ def github_callback():
     )
     discord_user = discord_user_future.result()
 
-    with globals.DISCORD_BOT.db as db:
-        query = Query()
+    q = globals.DISCORD_BOT.db.query()
 
+    with globals.DISCORD_BOT.db as db:
         # Get the discord_users table
         discord_users_table = db.table('discord_users')
 
@@ -244,7 +243,7 @@ def github_callback():
         # Upsert the user data (insert or update)
         discord_users_table.upsert(
             user_data,
-            query.user_id == int(discord_user_id)
+            q.user_id == int(discord_user_id)
         )
 
     globals.DISCORD_BOT.update_cached_message(
