@@ -1,7 +1,7 @@
 ---
 name: CI
 permissions:
-  contents: write  # needed for setup-release-action
+  contents: read
 
 on:
   pull_request:
@@ -21,16 +21,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build
+  release-setup:
+    name: Release Setup
+    outputs:
+      publish_release: ${{ steps.release-setup.outputs.publish_release }}
+      release_body: ${{ steps.release-setup.outputs.release_body }}
+      release_commit: ${{ steps.release-setup.outputs.release_commit }}
+      release_generate_release_notes: ${{ steps.release-setup.outputs.release_generate_release_notes }}
+      release_tag: ${{ steps.release-setup.outputs.release_tag }}
+      release_version: ${{ steps.release-setup.outputs.release_version }}
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Release
-        id: setup-release
-        uses: LizardByte/setup-release-action@v2025.612.120948
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Release Setup
+        id: release-setup
+        uses: LizardByte/actions/actions/release_setup@v2025.627.30023
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
+  build:
+    name: Build
+    needs:
+      - release-setup
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -74,7 +92,7 @@ jobs:
             -o junit_family=legacy \
             tests
 
-      - name: Upload test results to Codecov
+      - name: Upload test results
         # any except canceled or skipped
         if: >-
           always() &&
@@ -99,17 +117,45 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
 
+  build-docker:
+    name: Docker
+    needs: release-setup
+    permissions:
+      contents: read
+      packages: write
+    uses: LizardByte/.github/.github/workflows/__call-docker.yml@master
+    with:
+      maximize_build_space: false
+      publish_release: ${{ needs.release-setup.outputs.publish_release }}
+      release_commit: ${{ needs.release-setup.outputs.release_commit }}
+      release_tag: ${{ needs.release-setup.outputs.release_tag }}
+    secrets:
+      DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+      DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_HUB_PASSWORD }}
+      DOCKER_HUB_ACCESS_TOKEN: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+      GH_BOT_NAME: ${{ secrets.GH_BOT_NAME }}
+      GH_BOT_TOKEN: ${{ secrets.GH_BOT_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-release:
+    name: Create Release
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/master') &&
+      needs.release-setup.outputs.publish_release == 'true'
+    needs:
+      - release-setup
+      - build
+      - build-docker
+    runs-on: ubuntu-latest
+    steps:
       - name: Create/Update GitHub Release
-        if: >-
-          (github.event_name == 'push' && github.ref == 'refs/heads/master') &&
-          steps.setup-release.outputs.publish_release == 'true'
-        uses: LizardByte/create-release-action@v2025.612.13419
+        uses: LizardByte/actions/actions/release_create@v2025.627.30023
         with:
           allowUpdates: true
           artifacts: ''
-          body: ${{ steps.setup-release.outputs.release_body }}
-          generateReleaseNotes: ${{ steps.setup-release.outputs.release_generate_release_notes }}
-          name: ${{ steps.setup-release.outputs.release_tag }}
+          body: ${{ needs.release-setup.outputs.release_body }}
+          generateReleaseNotes: ${{ needs.release-setup.outputs.release_generate_release_notes }}
+          name: ${{ needs.release-setup.outputs.release_tag }}
           prerelease: true
-          tag: ${{ steps.setup-release.outputs.release_tag }}
+          tag: ${{ needs.release-setup.outputs.release_tag }}
           token: ${{ secrets.GH_BOT_TOKEN }}
