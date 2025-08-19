@@ -6,6 +6,6 @@ mistletoe==1.4.0
 praw==7.8.1
 py-cord==2.6.1
 python-dotenv==1.1.1
-requests==2.32.4
+requests==2.32.5
 requests-oauthlib==2.0.0
 tinydb==4.8.2
