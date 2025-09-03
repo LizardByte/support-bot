@@ -1,4 +1,4 @@
-cryptography==45.0.6
+cryptography==45.0.7
 Flask==3.1.2
 GitPython==3.1.45
 libgravatar==1.0.4
