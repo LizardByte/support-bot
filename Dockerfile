@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # artifacts: false
 # platforms: linux/amd64
-FROM python:3.12-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 # CI args
 ARG BRANCH
