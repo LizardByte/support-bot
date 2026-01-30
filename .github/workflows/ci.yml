@@ -39,7 +39,7 @@ jobs:
 
       - name: Release Setup
         id: release-setup
-        uses: LizardByte/actions/actions/release_setup@v2026.116.208
+        uses: LizardByte/actions/actions/release_setup@v2026.129.194351
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -150,7 +150,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create/Update GitHub Release
-        uses: LizardByte/actions/actions/release_create@v2026.116.208
+        uses: LizardByte/actions/actions/release_create@v2026.129.194351
         with:
           allowUpdates: true
           artifacts: ''
