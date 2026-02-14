@@ -73,7 +73,7 @@ jobs:
           IGDB_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           PRAW_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           PRAW_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_USERNAME: ${{ vars.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
         shell: bash
         run: |
