@@ -513,7 +513,7 @@ class RankCog(discord.Cog):
                 source_id=guild.id,
             )
             if migration_status:
-                print(f"Migration already completed for guild: {guild.name} ({guild.id})")
+                print(f"Mee6 migration already completed for guild: {guild.name} ({guild.id})")
                 continue  # Skip if already migrated
 
             try:
