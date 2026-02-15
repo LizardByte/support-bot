@@ -2,6 +2,7 @@
 from datetime import datetime, UTC
 import math
 import random
+import threading
 import time
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -15,6 +16,9 @@ from src.common import database
 from src.common import globals
 from src.common.rank_database import RankDatabase
 from src.discord_bot.bot import Bot
+
+# Global migration lock to prevent concurrent migrations
+MIGRATION_LOCK = threading.Lock()
 
 
 class RankSystem:
@@ -453,6 +457,17 @@ class RankSystem:
         Dict[str, Union[int, str]]
             Migration statistics
         """
+        # Acquire migration lock to prevent concurrent migrations
+        with MIGRATION_LOCK:
+            return self._do_reddit_migration(reddit_bot, reddit_db, community_id)
+
+    def _do_reddit_migration(
+            self,
+            reddit_bot,
+            reddit_db,
+            community_id: str,
+    ) -> Dict[str, Union[int, str]]:
+        """Internal method that performs the actual Reddit migration."""
         total_users = 0
         new_users = 0
         updated_users = 0
@@ -462,6 +477,7 @@ class RankSystem:
         skipped_comments = 0
         user_xp_map = {}  # Maps user_id to accumulated XP
 
+        original_git_enabled = database.GIT_ENABLED
         database.GIT_ENABLED = False  # Disable Git for this operation
 
         print("Starting Reddit ranks migration")
@@ -550,46 +566,64 @@ class RankSystem:
             total_users = len(user_xp_map)
             print(f"Updating {total_users} users in rank database")
 
-            for user_id, stats in user_xp_map.items():
-                database.GIT_ENABLED = False  # set this on every iteration in case it was enabled somewhere else
+            # Apply all updates in one transaction
+            with self.db as db:
+                table = db.table('reddit_users')
 
-                # Get existing user data or create new
-                user_data = self.db.get_user_data(
-                    platform='reddit',
-                    community_id=community_id,
-                    user_id=user_id,
-                    create_if_not_exists=True,
-                )
+                # Build a lookup map of existing users for faster access
+                existing_users_map = {}
+                for item in table.all():
+                    key = (item.get('user_id'), item.get('community_id'))
+                    existing_users_map[key] = item
+                print(f"Found {len(existing_users_map)} existing users")
 
-                if user_data.get('xp', 0) > 0:
-                    # User already has XP
-                    updated_users += 1
-                else:
-                    # New user or user with no XP
-                    new_users += 1
+                # Process each user
+                processed = 0
+                for user_id, stats in user_xp_map.items():
+                    key = (user_id, community_id)
+                    existing = existing_users_map.get(key)
 
-                # Update user with imported data
-                user_data['xp'] = stats['xp']
-                user_data['message_count'] = stats['submissions'] + stats['comments']
-                user_data['submission_count'] = stats['submissions']
-                user_data['comment_count'] = stats['comments']
-                user_data['username'] = stats['name']
-                user_data['reddit_import_date'] = datetime.now(UTC).isoformat()
+                    if existing and existing.get('xp', 0) > 0:
+                        # User already has XP
+                        updated_users += 1
+                    else:
+                        # New user or user with no XP
+                        new_users += 1
 
-                self.db.update_user_data(
-                    platform='reddit',
-                    community_id=community_id,
-                    user_id=user_id,
-                    data=user_data,
-                )
+                    # Prepare user data
+                    user_data = {
+                        'user_id': user_id,
+                        'community_id': community_id,
+                        'xp': stats['xp'],
+                        'message_count': stats['submissions'] + stats['comments'],
+                        'submission_count': stats['submissions'],
+                        'comment_count': stats['comments'],
+                        'username': stats['name'],
+                        'reddit_import_date': datetime.now(UTC).isoformat(),
+                    }
+
+                    # Update or insert
+                    if existing:
+                        table.update(user_data, doc_ids=[existing.doc_id])
+                    else:
+                        table.insert(user_data)
+
+                    processed += 1
+                    # Print progress every 50 users
+                    if processed % 50 == 0:
+                        print(f"Progress: {processed}/{total_users} users processed")
+
+                print(f"Finished updating {total_users} users")
 
         except Exception as e:
             print(f"Error during Reddit migration: {type(e).__name__}: {e}")
-            # Re-raise after enabling Git
-            database.GIT_ENABLED = True
+            # Re-raise after restoring Git state
+            database.GIT_ENABLED = original_git_enabled
             raise
 
-        database.GIT_ENABLED = True  # Re-enable Git after operation
+        # Restore original Git state and force one final sync
+        database.GIT_ENABLED = original_git_enabled
+        self.db.sync()
 
         stats = {
             'total_users': total_users,
@@ -621,11 +655,28 @@ class RankSystem:
         Dict[str, Union[int, str]]
             Migration statistics
         """
+        import asyncio
+
+        # Use async-friendly locking
+        loop = asyncio.get_event_loop()
+
+        # Acquire lock in a thread-safe way for async
+        await loop.run_in_executor(None, MIGRATION_LOCK.acquire)
+
+        try:
+            return await self._do_mee6_migration(guild_id)
+        finally:
+            MIGRATION_LOCK.release()
+
+    async def _do_mee6_migration(self, guild_id: int) -> Dict[str, Union[int, str]]:
+        """Internal method that performs the actual Mee6 migration."""
         page = 0
         total_users = 0
         new_users = 0
         updated_users = 0
+        batch_updates = []  # Collect all updates before applying
 
+        original_git_enabled = database.GIT_ENABLED
         database.GIT_ENABLED = False  # Disable Git for this operation
 
         async with aiohttp.ClientSession() as session:
@@ -650,43 +701,80 @@ class RankSystem:
                         print(f"Processing {player_count} players from page {page}")
 
                         for player in data['players']:
-                            database.GIT_ENABLED = False  # set this on every loop in case it's updated in another place
-
                             total_users += 1
                             user_id = int(player['id'])
 
-                            # Get existing user data or create new
-                            user_data = self.db.get_user_data(
-                                platform='discord',
-                                community_id=guild_id,
-                                user_id=user_id,
-                                create_if_not_exists=True,
-                            )
-
-                            if user_data.get('xp', 0) > 0:
-                                # User already has XP, skip or update as needed
-                                updated_users += 1
-                                continue
-
-                            # Update user with imported data
-                            user_data['xp'] = player['xp']
-                            user_data['message_count'] = player.get('message_count', 0)
-                            user_data['username'] = player.get('username', f"User {user_id}")
-                            user_data['mee6_import_date'] = datetime.now(UTC).isoformat()
-
-                            self.db.update_user_data('discord', guild_id, user_id, user_data)
-                            new_users += 1
+                            # Collect update data without writing yet
+                            user_update = {
+                                'user_id': user_id,
+                                'xp': player['xp'],
+                                'message_count': player.get('message_count', 0),
+                                'username': player.get('username', f"User {user_id}"),
+                                'mee6_import_date': datetime.now(UTC).isoformat(),
+                            }
+                            batch_updates.append(user_update)
 
                 except aiohttp.ClientError as e:
                     print(f"HTTP error during migration: {e}")
                     break
                 except Exception as e:
                     print(f"Unexpected error during migration: {e}")
+                    import traceback
+                    traceback.print_exc()
                     break
 
                 page += 1
 
-        database.GIT_ENABLED = True  # Re-enable Git after operation
+        # Now apply all updates in batches to avoid multiple commits
+        print(f"Applying {len(batch_updates)} user updates in batches")
+        BATCH_SIZE = 100
+
+        for i in range(0, len(batch_updates), BATCH_SIZE):
+            batch = batch_updates[i:i+BATCH_SIZE]
+
+            # Process batch within a single database context
+            with self.db as db:
+                table = db.table('discord_users')
+
+                # Build a lookup map of existing users in this batch
+                existing_users_map = {}
+                for item in table.all():
+                    if item.get('community_id') == guild_id:
+                        existing_users_map[item.get('user_id')] = item
+
+                for user_update in batch:
+                    user_id = user_update['user_id']
+                    existing = existing_users_map.get(user_id)
+
+                    if existing and existing.get('xp', 0) > 0:
+                        # User already has XP
+                        updated_users += 1
+                    else:
+                        # New user
+                        new_users += 1
+
+                    # Prepare user data
+                    user_data = {
+                        'user_id': user_id,
+                        'community_id': guild_id,
+                        'xp': user_update['xp'],
+                        'message_count': user_update['message_count'],
+                        'username': user_update['username'],
+                        'mee6_import_date': user_update['mee6_import_date'],
+                    }
+
+                    # Update or insert
+                    if existing:
+                        table.update(user_data, doc_ids=[existing.doc_id])
+                    else:
+                        table.insert(user_data)
+
+            print(f"Completed batch {i//BATCH_SIZE + 1}/{(len(batch_updates)-1)//BATCH_SIZE + 1}")
+
+        # Restore original Git state and force one final sync
+        database.GIT_ENABLED = original_git_enabled
+        self.db.sync()
+
 
         stats = {
             'total_processed': total_users,
