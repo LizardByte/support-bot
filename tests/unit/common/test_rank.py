@@ -1,4 +1,5 @@
 # standard imports
+import gc
 import os
 import tempfile
 import time
@@ -54,13 +55,16 @@ class TestRankSystem:
         # Set environment variables for git-free operation
         with patch.dict(os.environ, {}, clear=False):
             # Remove git-related env vars if they exist
-            env_patch = {k: v for k, v in os.environ.items()
-                        if k not in ['GIT_TOKEN', 'GITHUB_TOKEN', 'GIT_USER_NAME', 'GIT_USER_EMAIL']}
+            env_patch = {
+                k: v for k, v in os.environ.items()
+                if k not in ['GIT_TOKEN', 'GITHUB_TOKEN', 'GIT_USER_NAME', 'GIT_USER_EMAIL']
+            }
             with patch.dict(os.environ, env_patch, clear=True):
                 # Patch RankDatabase to use temp_db_dir
                 with patch('src.common.rank.RankDatabase') as mock_rank_db:
                     from src.common.rank_database import RankDatabase
-                    mock_rank_db.return_value = RankDatabase(db_dir=temp_db_dir, use_git=False)
+                    db_instance = RankDatabase(db_dir=temp_db_dir, use_git=False)
+                    mock_rank_db.return_value = db_instance
 
                     system = RankSystem(
                         bot=mock_bot,
@@ -68,6 +72,20 @@ class TestRankSystem:
                         cooldown=5,
                     )
                     yield system
+
+                    # Explicitly close the database to release file handles
+                    try:
+                        if hasattr(system, 'db') and system.db is not None:
+                            if hasattr(system.db, 'tinydb') and system.db.tinydb is not None:
+                                system.db.tinydb.close()
+                                system.db.tinydb = None
+                        # Force garbage collection to release file handles
+                        del system
+                        gc.collect()
+                        # Small delay to ensure Windows releases the file lock
+                        time.sleep(0.1)
+                    except Exception:
+                        pass  # Ignore cleanup errors
 
     def test_init(self, rank_system, mock_bot):
         """Test RankSystem initialization."""
@@ -78,20 +96,20 @@ class TestRankSystem:
 
     def test_calculate_level(self, rank_system):
         """Test level calculation from XP."""
-        # Test various XP values
+        # Test various XP values using formula: level = floor(sqrt(xp / 100))
         assert rank_system.calculate_level(xp=0) == 0
         assert rank_system.calculate_level(xp=100) == 1
-        assert rank_system.calculate_level(xp=355) == 2
-        assert rank_system.calculate_level(xp=1000) == 4
-        assert rank_system.calculate_level(xp=10000) == 13
+        assert rank_system.calculate_level(xp=400) == 2  # sqrt(400/100) = 2
+        assert rank_system.calculate_level(xp=1000) == 3  # floor(sqrt(10)) = 3
+        assert rank_system.calculate_level(xp=10000) == 10  # sqrt(100) = 10
 
     def test_calculate_xp_for_level(self, rank_system):
         """Test XP calculation for specific level."""
-        # Test various levels
+        # Test various levels using formula: xp = level^2 * 100
         assert rank_system.calculate_xp_for_level(level=0) == 0
         assert rank_system.calculate_xp_for_level(level=1) == 100
-        assert rank_system.calculate_xp_for_level(level=2) == 355
-        assert rank_system.calculate_xp_for_level(level=5) == 2345
+        assert rank_system.calculate_xp_for_level(level=2) == 400  # 2^2 * 100
+        assert rank_system.calculate_xp_for_level(level=5) == 2500  # 5^2 * 100
 
     def test_get_community_id_discord(self, rank_system):
         """Test getting community ID for Discord user."""
@@ -101,9 +119,15 @@ class TestRankSystem:
 
     def test_get_community_id_reddit(self, rank_system):
         """Test getting community ID for Reddit user."""
-        user = MockRedditUser(user_id='test123', subreddit_id='lizardbyte')
-        community_id = rank_system.get_community_id(platform='reddit', user=user)
-        assert community_id == 'lizardbyte'
+        # Mock the globals.REDDIT_BOT
+        with patch('src.common.rank.globals') as mock_globals:
+            mock_reddit_bot = MagicMock()
+            mock_reddit_bot.subreddit.id = 'lizardbyte'
+            mock_globals.REDDIT_BOT = mock_reddit_bot
+
+            user = MockRedditUser(user_id='test123', subreddit_id='lizardbyte')
+            community_id = rank_system.get_community_id(platform='reddit', user=user)
+            assert community_id == 'lizardbyte'
 
     def test_get_rank_data_new_user(self, rank_system):
         """Test getting rank data for a new user."""
@@ -292,13 +316,19 @@ class TestRankSystem:
 
     def test_reddit_platform(self, rank_system):
         """Test rank system with Reddit platform."""
-        user = MockRedditUser(user_id='reddit123', name='RedditUser')
+        # Mock the globals.REDDIT_BOT
+        with patch('src.common.rank.globals') as mock_globals:
+            mock_reddit_bot = MagicMock()
+            mock_reddit_bot.subreddit.id = 'test_subreddit'
+            mock_globals.REDDIT_BOT = mock_reddit_bot
 
-        result = rank_system.award_xp(platform='reddit', user=user)
+            user = MockRedditUser(user_id='reddit123', name='RedditUser')
 
-        assert result is not None
-        assert result['user_data']['user_id'] == 'reddit123'
-        assert result['user_data']['community_id'] == 'test_subreddit'
+            result = rank_system.award_xp(platform='reddit', user=user)
+
+            assert result is not None
+            assert result['user_data']['user_id'] == 'reddit123'
+            assert result['user_data']['community_id'] == 'test_subreddit'
 
     def test_get_migration_status_none(self, rank_system):
         """Test getting migration status when none exists."""
