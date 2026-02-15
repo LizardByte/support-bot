@@ -417,10 +417,10 @@ class RankCog(discord.Cog):
         """Command to view the server leaderboard with pagination."""
         await ctx.defer(ephemeral=False)
 
-        communities = dict(
-            discord=ctx.guild.id,
-            reddit=globals.REDDIT_BOT.subreddit.id if globals.REDDIT_BOT else None,
-        )
+        communities = {
+            'discord': ctx.guild.id,
+            'reddit': globals.REDDIT_BOT.subreddit.id if globals.REDDIT_BOT else None,
+        }
 
         community_id = communities.get(platform)
         if not community_id:
@@ -459,10 +459,10 @@ class RankCog(discord.Cog):
         """Handle pagination button clicks for the leaderboard."""
         await interaction.response.defer()
 
-        communities = dict(
-            discord=interaction.guild.id,
-            reddit=globals.REDDIT_BOT.subreddit.id if globals.REDDIT_BOT else None,
-        )
+        communities = {
+            'discord': interaction.guild.id,
+            'reddit': globals.REDDIT_BOT.subreddit.id if globals.REDDIT_BOT else None,
+        }
 
         community_id = communities.get(platform)
         if not community_id:

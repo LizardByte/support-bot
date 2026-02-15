@@ -99,9 +99,9 @@ class TestRankSystem:
         # Test various XP values using formula: level = floor(sqrt(xp / 100))
         assert rank_system.calculate_level(xp=0) == 0
         assert rank_system.calculate_level(xp=100) == 1
-        assert rank_system.calculate_level(xp=400) == 2  # sqrt(400/100) = 2
-        assert rank_system.calculate_level(xp=1000) == 3  # floor(sqrt(10)) = 3
-        assert rank_system.calculate_level(xp=10000) == 10  # sqrt(100) = 10
+        assert rank_system.calculate_level(xp=400) == 2
+        assert rank_system.calculate_level(xp=1000) == 3
+        assert rank_system.calculate_level(xp=10000) == 10
 
     def test_calculate_xp_for_level(self, rank_system):
         """Test XP calculation for specific level."""
