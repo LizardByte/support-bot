@@ -30,12 +30,16 @@ platforms such as GitHub discussions/issues might be added in the future.
 * Set up an application at [reddit apps](https://www.reddit.com/prefs/apps/).
   * The redirect uri should be https://localhost:8080
   * Take note of the `client_id` and `client_secret`
- 
+
 ### Environment Variables
 
-* Add the following as environment variables or in a `.env` file (use `sample.env` as an example).  
-  :exclamation: if using Docker these can be arguments.  
-  :warning: Never publicly expose your tokens, secrets, or ids.  
+* Add the following as environment variables or in a `.env` file (use `sample.env` as an example).
+
+> [!TIP]
+> If using Docker, these can be arguments.
+
+> [!WARNING]
+> Never publicly expose your tokens, secrets, or ids.
 
 | variable                         | required | default                                              | description                                                                                |
 |----------------------------------|----------|------------------------------------------------------|--------------------------------------------------------------------------------------------|
@@ -45,6 +49,7 @@ platforms such as GitHub discussions/issues might be added in the future.
 | DISCORD_CLIENT_ID                | True     | `None`                                               | Discord OAuth2 client id.                                                                  |
 | DISCORD_CLIENT_SECRET            | True     | `None`                                               | Discord OAuth2 client secret.                                                              |
 | DISCORD_GITHUB_STATUS_CHANNEL_ID | True     | `None`                                               | Channel ID to send GitHub status updates to.                                               |
+| DISCORD_LEVEL_UP_CHANNEL_ID      | False    | `None`                                               | Channel ID to send user level up messages to.                                              |
 | DISCORD_REDDIT_CHANNEL_ID        | True     | `None`                                               | Channel ID to send Reddit post updates to.                                                 |
 | DISCORD_REDIRECT_URI             | False    | `https://localhost:8080/discord/callback`            | The redirect uri for OAuth2. Must be publicly accessible.                                  |
 | DISCORD_SPONSORS_CHANNEL_ID      | True     | `None`                                               | Channel ID to send sponsorship updates to.                                                 |
