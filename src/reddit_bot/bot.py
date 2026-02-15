@@ -126,14 +126,14 @@ class Bot:
             if existing_comment and existing_comment.get('processed', False):
                 return
 
-            comment_data = {
-                'reddit_id': comment.id,  # Store Reddit ID as a regular field
-                'author': str(comment.author),
-                'body': comment.body,
-                'created_utc': comment.created_utc,
-                'processed': False,
-                'slash_command': {'project': None, 'command': None},
-            }
+        comment_data = {
+            'reddit_id': comment.id,  # Store Reddit ID as a regular field
+            'author': str(comment.author),
+            'body': comment.body,
+            'created_utc': comment.created_utc,
+            'processed': False,
+            'slash_command': {'project': None, 'command': None},
+        }
 
         # Award XP for the comment if it's from a valid user
         try:
@@ -148,7 +148,9 @@ class Bot:
         comment_data = self.slash_commands(comment=comment, comment_data=comment_data)
         comment_data['processed'] = True
 
-        with self.db:
+        with self.db as db:
+            q = self.db.query()
+            comments_table = db.table('comments')
             if existing_comment:
                 comments_table.update(comment_data, q.reddit_id == comment.id)
             else:
@@ -168,26 +170,39 @@ class Bot:
             submissions_table = db.table('submissions')
             existing_submission = submissions_table.get(q.reddit_id == submission.id)
 
-            # Extract submission data to store
-            submission_data = {
-                'reddit_id': submission.id,  # Store Reddit ID as a regular field
-                'title': submission.title,
-                'selftext': submission.selftext,
-                'author': str(submission.author),
-                'created_utc': submission.created_utc,
-                'permalink': submission.permalink,
-                'url': submission.url,
-                'link_flair_text': submission.link_flair_text if hasattr(submission, 'link_flair_text') else None,
-                'link_flair_background_color': submission.link_flair_background_color if hasattr(
-                    submission, 'link_flair_background_color') else None,
-                'bot_discord': {'sent': False, 'sent_utc': None},
-            }
-
             if existing_submission:
-                submission_data['bot_discord'] = existing_submission.get(
-                    'bot_discord', {'sent': False, 'sent_utc': None})
+                # Extract submission data to store
+                submission_data = {
+                    'reddit_id': submission.id,  # Store Reddit ID as a regular field
+                    'title': submission.title,
+                    'selftext': submission.selftext,
+                    'author': str(submission.author),
+                    'created_utc': submission.created_utc,
+                    'permalink': submission.permalink,
+                    'url': submission.url,
+                    'link_flair_text': submission.link_flair_text if hasattr(submission, 'link_flair_text') else None,
+                    'link_flair_background_color': submission.link_flair_background_color if hasattr(
+                        submission, 'link_flair_background_color') else None,
+                    'bot_discord': existing_submission.get(
+                        'bot_discord', {'sent': False, 'sent_utc': None}),
+                }
                 submissions_table.update(submission_data, q.reddit_id == submission.id)
                 return
+
+        # Extract submission data to store
+        submission_data = {
+            'reddit_id': submission.id,  # Store Reddit ID as a regular field
+            'title': submission.title,
+            'selftext': submission.selftext,
+            'author': str(submission.author),
+            'created_utc': submission.created_utc,
+            'permalink': submission.permalink,
+            'url': submission.url,
+            'link_flair_text': submission.link_flair_text if hasattr(submission, 'link_flair_text') else None,
+            'link_flair_background_color': submission.link_flair_background_color if hasattr(
+                submission, 'link_flair_background_color') else None,
+            'bot_discord': {'sent': False, 'sent_utc': None},
+        }
 
         print(f'submission id: {submission.id}')
         print(f'submission title: {submission.title}')
@@ -208,7 +223,8 @@ class Bot:
         submission_data = self.flair(submission=submission, submission_data=submission_data)
         submission_data = self.karma(submission=submission, submission_data=submission_data)
 
-        with self.db:
+        with self.db as db:
+            submissions_table = db.table('submissions')
             submissions_table.insert(submission_data)
 
     def award_reddit_xp(self, user: models.Redditor):
