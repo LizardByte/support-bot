@@ -6,6 +6,9 @@ import os
 from libgravatar import Gravatar
 import requests
 
+# local imports
+from src.common.version import __version__
+
 
 colors = {
     'black': 0x000000,
@@ -66,4 +69,4 @@ org_name = 'LizardByte'
 bot_name = f'{org_name}-Bot'
 bot_url = 'https://app.lizardbyte.dev'
 app_dir, data_dir = get_app_dirs()
-version = '0.0.0'
+version = __version__
