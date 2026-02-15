@@ -1,4 +1,5 @@
 # standard imports
+import os
 from typing import Union
 
 # lib imports
@@ -43,8 +44,19 @@ class RankCog(discord.Cog):
             )
             if result and result['level_up']:
                 try:
-                    # TODO: Send level up message in a designated channel
-                    pass
+                    # Send level up message in designated channel
+                    channel_id = os.getenv('DISCORD_LEVEL_UP_CHANNEL_ID')
+                    if channel_id:
+                        channel = self.bot.get_channel(int(channel_id))
+                        if channel:
+                            new_level = result['level']
+                            embed = discord.Embed(
+                                title="🎉 Level Up!",
+                                description=f"{user.mention} has reached **Level {new_level}**!",
+                                color=discord.Color.gold(),
+                            )
+                            embed.set_thumbnail(url=user.display_avatar.url)
+                            await channel.send(embed=embed)
                 except Exception as e:
                     print(f"Error handling level up notification: {e}")
 

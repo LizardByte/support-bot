@@ -45,6 +45,7 @@ platforms such as GitHub discussions/issues might be added in the future.
 | DISCORD_CLIENT_ID                | True     | `None`                                               | Discord OAuth2 client id.                                                                  |
 | DISCORD_CLIENT_SECRET            | True     | `None`                                               | Discord OAuth2 client secret.                                                              |
 | DISCORD_GITHUB_STATUS_CHANNEL_ID | True     | `None`                                               | Channel ID to send GitHub status updates to.                                               |
+| DISCORD_LEVEL_UP_CHANNEL_ID      | False    | `None`                                               | Channel ID to send user level up messages to.                                              |
 | DISCORD_REDDIT_CHANNEL_ID        | True     | `None`                                               | Channel ID to send Reddit post updates to.                                                 |
 | DISCORD_REDIRECT_URI             | False    | `https://localhost:8080/discord/callback`            | The redirect uri for OAuth2. Must be publicly accessible.                                  |
 | DISCORD_SPONSORS_CHANNEL_ID      | True     | `None`                                               | Channel ID to send sponsorship updates to.                                                 |
