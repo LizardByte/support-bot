@@ -376,3 +376,318 @@ class TestDatabase:
                 table = tinydb.table(f"worker_{i}")
                 assert len(table.all()) == 1
                 assert table.all()[0]["id"] == i
+
+    def test_sync_with_git_enabled_no_changes(self, db_init, cleanup_files):
+        """Test sync with git enabled but no changes to commit."""
+        from unittest.mock import MagicMock
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+        db.repo.git.status.return_value = ""  # No changes
+
+        # Call sync
+        db.sync()
+
+        # Verify status was checked but nothing was committed
+        db.repo.git.status.assert_called_with('--porcelain')
+        db.repo.git.add.assert_not_called()
+        db.repo.git.commit.assert_not_called()
+
+    def test_sync_with_git_enabled_with_changes(self, db_init, cleanup_files):
+        """Test sync with git enabled and changes to commit."""
+        from unittest.mock import MagicMock
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+        db.repo_url = "https://github.com/test/repo"
+        db.repo_branch = "main"
+        db.git_user_name = "testuser"
+        db.git_token = "testtoken"
+
+        # Mock _configure_repo to avoid actual git config operations
+        db._configure_repo = MagicMock()
+
+        # Mock git operations
+        db.repo.git.status.side_effect = [
+            "M db_test.json",  # First call - changes exist
+            "M db_test.json",  # Second call - still changes after add
+        ]
+
+        # Mock os.listdir to return a json file
+        with patch('os.listdir', return_value=['db_test.json']):
+            # Mock GIT_ENABLED
+            with patch.object(db_module, 'GIT_ENABLED', True):
+                # Call sync
+                db.sync()
+
+        # Verify git operations were called
+        assert db.repo.git.status.call_count == 2
+        db.repo.git.add.assert_called_once()
+        db._configure_repo.assert_called_once()
+        db.repo.git.commit.assert_called_once_with('-m', 'Update database files')
+        db.repo.git.push.assert_called_once()
+
+    def test_sync_with_git_multiple_json_files(self, db_init, cleanup_files):
+        """Test sync with git adds multiple json files."""
+        from unittest.mock import MagicMock
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+        db.repo_url = "https://github.com/test/repo"
+        db.repo_branch = "main"
+        db.git_user_name = "testuser"
+        db.git_token = "testtoken"
+
+        # Mock git operations
+        db.repo.git.status.side_effect = [
+            "M db_test.json",  # First call
+            "M db_test.json",  # Second call
+        ]
+
+        # Mock os.listdir to return multiple json files
+        with patch('os.listdir', return_value=['db1.json', 'db2.json', 'db3.json']):
+            with patch.object(db_module, 'GIT_ENABLED', True):
+                db.sync()
+
+        # Verify all json files were added
+        assert db.repo.git.add.call_count == 3
+
+    def test_sync_with_git_push_failure(self, db_init, cleanup_files):
+        """Test sync handles git push failures gracefully."""
+        from unittest.mock import MagicMock
+        import git
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+        db.repo_url = "https://github.com/test/repo"
+        db.repo_branch = "main"
+        db.git_user_name = "testuser"
+        db.git_token = "testtoken"
+
+        # Mock _configure_repo to avoid actual git config operations
+        db._configure_repo = MagicMock()
+
+        # Mock git operations - push fails
+        db.repo.git.status.side_effect = [
+            "M db_test.json",
+            "M db_test.json",
+        ]
+        db.repo.git.push.side_effect = git.exc.GitCommandError("push", "Failed to push")
+
+        with patch('os.listdir', return_value=['db_test.json']):
+            with patch.object(db_module, 'GIT_ENABLED', True):
+                # Should not raise exception
+                db.sync()
+
+        # Verify commit was made but push failed
+        db.repo.git.commit.assert_called_once()
+        db.repo.git.push.assert_called_once()
+
+    def test_sync_with_git_operation_exception(self, db_init, cleanup_files):
+        """Test sync handles general git exceptions gracefully."""
+        from unittest.mock import MagicMock
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+
+        # Mock git status to raise exception
+        db.repo.git.status.side_effect = Exception("Git error")
+
+        with patch.object(db_module, 'GIT_ENABLED', True):
+            # Should not raise exception
+            db.sync()
+
+        # Database should still be usable after error
+        with db as tinydb:
+            tinydb.insert({'after_error': 'works'})
+            assert len(tinydb.all()) >= 1
+
+    def test_sync_with_git_disabled_by_flag(self, db_init, cleanup_files):
+        """Test sync with git disabled by GIT_ENABLED flag."""
+        from unittest.mock import MagicMock
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git but disable GIT_ENABLED flag
+        db.use_git = True
+        db.repo = MagicMock()
+
+        with patch.object(db_module, 'GIT_ENABLED', False):
+            db.sync()
+
+        # Verify no git operations were performed
+        db.repo.git.status.assert_not_called()
+
+    def test_sync_with_no_json_files(self, db_init, cleanup_files):
+        """Test sync with changes but no json files to add."""
+        from unittest.mock import MagicMock
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+        db.repo.git.status.return_value = "M some_file.txt"
+
+        # Mock os.listdir to return no json files
+        with patch('os.listdir', return_value=['other_file.txt']):
+            with patch.object(db_module, 'GIT_ENABLED', True):
+                db.sync()
+
+        # Verify no files were added since no json files exist
+        db.repo.git.add.assert_not_called()
+
+    def test_sync_with_changes_but_empty_after_add(self, db_init, cleanup_files):
+        """Test sync when status shows changes but nothing after git add."""
+        from unittest.mock import MagicMock
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+
+        # Mock git operations - changes initially but nothing after add
+        db.repo.git.status.side_effect = [
+            "M db_test.json",  # First call - changes exist
+            "",  # Second call - nothing to commit after add
+        ]
+
+        with patch('os.listdir', return_value=['db_test.json']):
+            with patch.object(db_module, 'GIT_ENABLED', True):
+                db.sync()
+
+        # Verify add was called but not commit
+        db.repo.git.add.assert_called_once()
+        db.repo.git.commit.assert_not_called()
+
+    def test_sync_url_split_and_push_url_construction(self, db_init, cleanup_files):
+        """Test that sync correctly constructs push URL with credentials."""
+        from unittest.mock import MagicMock
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+        db.repo_url = "https://github.com/LizardByte/support-bot-data"
+        db.repo_branch = "master"
+        db.git_user_name = "myuser"
+        db.git_token = "mytoken123"
+
+        # Mock _configure_repo to avoid actual git config operations
+        db._configure_repo = MagicMock()
+
+        # Mock git operations
+        db.repo.git.status.side_effect = [
+            "M db_test.json",
+            "M db_test.json",
+        ]
+
+        with patch('os.listdir', return_value=['db_test.json']):
+            with patch.object(db_module, 'GIT_ENABLED', True):
+                db.sync()
+
+        # Verify push was called with correctly formatted URL
+        expected_url = "https://myuser:mytoken123@github.com/LizardByte/support-bot-data"
+        db.repo.git.push.assert_called_once_with(expected_url, "master")
+
+    def test_configure_repo_called_during_sync(self, db_init, cleanup_files):
+        """Test that _configure_repo is called during sync when committing."""
+        from unittest.mock import MagicMock
+        import src.common.database as db_module
+
+        db = Database(
+            db_name=f'db_{inspect.currentframe().f_code.co_name}',
+            db_dir=db_init['db_dir'],
+            use_git=False,
+        )
+
+        # Enable git and mock the repo
+        db.use_git = True
+        db.repo = MagicMock()
+        db.repo_url = "https://github.com/test/repo"
+        db.repo_branch = "main"
+        db.git_user_name = "testuser"
+        db.git_token = "testtoken"
+
+        # Mock _configure_repo
+        configure_repo_called = []
+
+        def mock_configure():
+            configure_repo_called.append(True)
+            # Don't actually call original to avoid git operations
+
+        db._configure_repo = mock_configure
+
+        # Mock git operations
+        db.repo.git.status.side_effect = [
+            "M db_test.json",
+            "M db_test.json",
+        ]
+
+        with patch('os.listdir', return_value=['db_test.json']):
+            with patch.object(db_module, 'GIT_ENABLED', True):
+                db.sync()
+
+        # Verify _configure_repo was called
+        assert len(configure_repo_called) == 1
