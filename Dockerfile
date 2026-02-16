@@ -34,11 +34,15 @@ RUN <<_SETUP
 #!/bin/bash
 set -e
 
-# replace the version in the code
-sed -i "s/version = '0.0.0'/version = '${BUILD_VERSION}'/g" src/common/common.py
+# write the version to the version file
+cat > src/common/version.py <<EOF
+"""Version information for support-bot."""
+
+__version__ = "${BUILD_VERSION}"
+EOF
 
 # install dependencies
-python -m pip install --no-cache-dir -r requirements.txt
+python -m pip install --no-cache-dir .
 _SETUP
 
 CMD ["python", "-m", "src"]

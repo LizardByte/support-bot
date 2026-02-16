@@ -70,6 +70,20 @@ platforms such as GitHub discussions/issues might be added in the future.
 | SUPPORT_COMMANDS_REPO            | False    | `https://github.com/LizardByte/support-bot-commands` | Repository for support commands.                                                           |
 | SUPPORT_COMMANDS_BRANCH          | False    | `master`                                             | Branch for support commands.                                                               |
 
+### Install
+
+Install the project and its dependencies:
+
+```bash
+python -m pip install -e .
+```
+
+For development (includes test dependencies):
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
 ### Start
 
 ```bash
