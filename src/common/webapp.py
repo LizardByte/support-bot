@@ -363,7 +363,7 @@ def run():
     cert_file, key_file = crypto.initialize_certificate()
 
     app.run(
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=8080,
         ssl_context=(cert_file, key_file)
     )
