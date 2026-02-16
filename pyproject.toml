@@ -7,7 +7,7 @@ name = "support-bot"
 dynamic = ["version"]
 description = "Support bot written in python to help manage LizardByte communities"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = {text = "AGPL-3.0-only"}
 authors = [
     {name = "LizardByte", email = "lizardbyte@users.noreply.github.com"}
@@ -17,7 +17,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 dependencies = [
