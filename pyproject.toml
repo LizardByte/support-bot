@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
     "cryptography==46.0.5",
     "Flask==3.1.2",
+    "Flask-WTF==1.2.2",
     "GitPython==3.1.46",
     "libgravatar==1.0.4",
     "mistletoe==1.5.1",

@@ -153,3 +153,4 @@ cython_debug/
 
 # project specific ignores
 data/
+junit.xml
