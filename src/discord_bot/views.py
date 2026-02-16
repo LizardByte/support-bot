@@ -278,20 +278,20 @@ class DonateCommandView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)  # timeout of the view must be set to None, view is persistent
 
-        self.donation_methods = dict(
-            github=dict(
-                name='GitHub',
-                url='https://github.com/sponsors/LizardByte'
-            ),
-            patreon=dict(
-                name='Patreon',
-                url='https://www.patreon.com/LizardByte'
-            ),
-            paypal=dict(
-                name='PayPal',
-                url='https://paypal.me/ReenigneArcher'
-            )
-        )
+        self.donation_methods = {
+            'github': {
+                'name': 'GitHub',
+                'url': 'https://github.com/sponsors/LizardByte',
+            },
+            'patreon': {
+                'name': 'Patreon',
+                'url': 'https://www.patreon.com/LizardByte',
+            },
+            'paypal': {
+                'name': 'PayPal',
+                'url': 'https://paypal.me/ReenigneArcher',
+            },
+        }
 
         for method in self.donation_methods:
             button = discord.ui.Button(
