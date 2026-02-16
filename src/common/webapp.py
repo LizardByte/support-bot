@@ -8,6 +8,7 @@ from typing import Tuple
 # lib imports
 import discord
 from flask import Flask, jsonify, redirect, request, Response, send_from_directory
+from flask_wtf import CSRFProtect
 from requests_oauthlib import OAuth2Session
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -30,6 +31,8 @@ app = Flask(
     import_name='LizardByte-bot',
     static_folder=os.path.join(app_dir, 'assets'),
 )
+app.secret_key = os.urandom(32).hex()
+csrf = CSRFProtect(app)  # Enable CSRF Protection
 
 # this allows us to log the real IP address of the client, instead of the IP address of the proxy host
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
@@ -75,7 +78,7 @@ def html_to_md(html: str) -> str:
     return html
 
 
-@app.route('/status')
+@app.route('/status', methods=["GET"])
 def status():
     degraded_checks = [
         getattr(globals.DISCORD_BOT, 'DEGRADED', True),
@@ -93,7 +96,7 @@ def status():
     return jsonify(result)
 
 
-@app.route("/favicon.ico")
+@app.route("/favicon.ico", methods=["GET"])
 def favicon():
     return send_from_directory(
         directory=app.static_folder,
@@ -102,7 +105,7 @@ def favicon():
     )
 
 
-@app.route("/discord/callback")
+@app.route("/discord/callback", methods=["GET"])
 def discord_callback():
     # errors will be in the query parameters
     if 'error' in request.args:
@@ -179,7 +182,7 @@ def discord_callback():
     return redirect("https://app.lizardbyte.dev")
 
 
-@app.route("/github/callback")
+@app.route("/github/callback", methods=["GET"])
 def github_callback():
     # errors will be in the query parameters
     if 'error' in request.args:
@@ -256,6 +259,7 @@ def github_callback():
 
 
 @app.route("/webhook/<source>/<key>", methods=["POST"])
+@csrf.exempt
 def webhook(source: str, key: str) -> Tuple[Response, int]:
     """
     Process webhooks from various sources.
