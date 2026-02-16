@@ -1,9 +1,9 @@
 # standard imports
+import logging
 import os
 from pathlib import Path
 import shelve
 import threading
-import traceback
 from typing import Union
 
 # lib imports
@@ -14,6 +14,9 @@ from tinydb.middlewares import CachingMiddleware
 
 # local imports
 from src.common.common import data_dir
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 # Constants
 DATA_REPO_LOCK = threading.Lock()
@@ -52,7 +55,7 @@ class Database:
 
             if not os.path.exists(self.db_dir):
                 # Clone repo if it doesn't exist
-                print(f"Cloning repository {self.repo_url} to {self.db_dir}")
+                logger.info(f"Cloning repository {self.repo_url} to {self.db_dir}")
                 try:
                     # Try cloning with the specified branch
                     self.repo = git.Repo.clone_from(clone_url, self.db_dir, branch=self.repo_branch)
@@ -61,7 +64,7 @@ class Database:
                 except git.exc.GitCommandError as e:
                     # Check if the error is due to branch not found
                     if "Remote branch" in str(e) and "not found in upstream origin" in str(e):
-                        print(f"Branch '{self.repo_branch}' not found in remote. Creating a new empty branch.")
+                        logger.info(f"Branch '{self.repo_branch}' not found in remote. Creating a new empty branch.")
                         # Clone with default branch first
                         self.repo = git.Repo.clone_from(clone_url, self.db_dir)
                         # Configure the repo
@@ -99,9 +102,9 @@ class Database:
                         # Push the new branch to remote
                         try:
                             self.repo.git.push('--set-upstream', 'origin', self.repo_branch)
-                            print(f"Created and pushed new empty branch '{self.repo_branch}'")
+                            logger.info(f"Created and pushed new empty branch '{self.repo_branch}'")
                         except git.exc.GitCommandError as e:
-                            print(f"Failed to push new branch: {str(e)}")
+                            logger.error(f"Failed to push new branch: {str(e)}")
                             # Continue anyway - we might not have push permissions
                     else:
                         # Re-raise if it's a different error
@@ -135,9 +138,10 @@ class Database:
                             self.repo.git.add(gitkeep_path)
                             self.repo.git.commit('-m', f"Initialize empty branch '{self.repo_branch}'")
                             self.repo.git.push('--set-upstream', 'origin', self.repo_branch)
-                            print(f"Created and pushed new empty branch '{self.repo_branch}'")
+                            logger.info(f"Created and pushed new empty branch '{self.repo_branch}'")
                     except git.exc.GitCommandError:
-                        print(f"Failed to work with branch '{self.repo_branch}'. Using current branch instead.")
+                        logger.warning(
+                            f"Failed to work with branch '{self.repo_branch}'. Using current branch instead.")
                 else:
                     # Branch exists locally, make sure it's checked out
                     self.repo.git.checkout(self.repo_branch)
@@ -181,7 +185,7 @@ class Database:
                 origin = self.repo.remote('origin')
                 origin.set_url(new_url)
             except git.exc.GitCommandError as e:
-                print(f"Failed to update remote URL: {str(e)}")
+                logger.error(f"Failed to update remote URL: {str(e)}")
                 # Continue anyway, might work with stored credentials
 
     def _check_for_migration(self):
@@ -191,7 +195,7 @@ class Database:
         json_exists = os.path.exists(self.json_path)
 
         if shelve_exists and not json_exists:
-            print(f"Migrating database from shelve to TinyDB: {self.shelve_path}")
+            logger.info(f"Migrating database from shelve to TinyDB: {self.shelve_path}")
             self._migrate_from_shelve()
 
     def _migrate_from_shelve(self):
@@ -265,10 +269,9 @@ class Database:
                 migration_db.storage.flush()
                 migration_db.close()
 
-            print(f"Migration completed successfully: {self.json_path}")
+            logger.info(f"Migration completed successfully: {self.json_path}")
         except Exception as e:
-            print(f"Migration failed: {str(e)}")
-            traceback.print_exc()
+            logger.error(f"Migration failed: {str(e)}")
 
     def __enter__(self):
         self.lock.acquire()
@@ -315,7 +318,7 @@ class Database:
                                 # Commit all changes at once with a general message
                                 commit_message = "Update database files"
                                 self.repo.git.commit('-m', commit_message)
-                                print("Committed changes to git data repository")
+                                logger.info("Committed changes to git data repository")
 
                                 # Push to remote with credentials
                                 try:
@@ -323,13 +326,12 @@ class Database:
                                     protocol, repo_path = self.repo_url.split("://", 1)
                                     push_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
                                     self.repo.git.push(push_url, self.repo_branch)
-                                    print("Pushed changes to remote git data repository")
+                                    logger.info("Pushed changes to remote git data repository")
                                 except git.exc.GitCommandError as e:
-                                    print(f"Failed to push changes: {str(e)}")
+                                    logger.error(f"Failed to push changes: {str(e)}")
 
                     except Exception as e:
-                        print(f"Git operation failed: {str(e)}")
-                        traceback.print_exc()
+                        logger.error(f"Git operation failed: {str(e)}")
         finally:
             # Ensure database is ready for next use
             if self.tinydb is None:

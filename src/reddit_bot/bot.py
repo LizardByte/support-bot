@@ -1,5 +1,6 @@
 # standard imports
 from datetime import datetime
+import logging
 import os
 import sys
 import threading
@@ -18,6 +19,9 @@ from src.common import globals
 from src.common import inspector
 from src.common.database import Database
 from src.common.rank import RankSystem
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 class Bot:
@@ -112,7 +116,7 @@ class Bot:
             redditor.id
         except prawcore.NotFound:
             # If the user is suspended or deleted, return None
-            print(f"User {name} not found or suspended.")
+            logger.warning(f"User {name} not found or suspended.")
             return None
 
         return redditor
@@ -141,9 +145,9 @@ class Bot:
                 # Pass the actual Reddit user object to award_xp
                 xp_result = self.award_reddit_xp(comment.author)
                 if xp_result and xp_result.get('level_up'):
-                    print(f"User {comment.author.name} leveled up to {xp_result.get('level')}!")
+                    logger.info(f"User {comment.author.name} leveled up to {xp_result.get('level')}!")
         except Exception as e:
-            print(f"Error awarding XP: {e}")
+            logger.error(f"Error awarding XP: {e}", exc_info=True)
 
         comment_data = self.slash_commands(comment=comment, comment_data=comment_data)
         comment_data['processed'] = True
@@ -204,9 +208,7 @@ class Bot:
             'bot_discord': {'sent': False, 'sent_utc': None},
         }
 
-        print(f'submission id: {submission.id}')
-        print(f'submission title: {submission.title}')
-        print('---------')
+        logger.info(f"New submission: {submission_data}")
 
         # Award XP for new submissions
         try:
@@ -214,9 +216,9 @@ class Bot:
                 # Pass the actual Reddit user object
                 xp_result = self.award_reddit_xp(submission.author)
                 if xp_result and xp_result.get('level_up'):
-                    print(f"User {submission.author.name} leveled up to {xp_result.get('level')}!")
+                    logger.info(f"User {submission.author.name} leveled up to {xp_result.get('level')}!")
         except Exception as e:
-            print(f"Error awarding XP: {e}")
+            logger.error(f"Error awarding XP: {e}", exc_info=True)
 
         if os.getenv('DISCORD_REDDIT_CHANNEL_ID'):
             submission_data = self.discord(submission=submission, submission_data=submission_data)
@@ -264,10 +266,10 @@ class Bot:
             )
 
             if migration_status:
-                print(f"Reddit ranks migration already completed on {migration_status.get('timestamp')}")
+                logger.info(f"Reddit ranks migration already completed on {migration_status.get('timestamp')}")
                 return
 
-            print("Starting Reddit ranks migration...")
+            logger.info("Starting Reddit ranks migration...")
 
             # Start the migration process
             stats = self.rank_system.migrate_from_reddit_database(
@@ -284,10 +286,10 @@ class Bot:
                 stats=stats,
             )
 
-            print(f"Reddit ranks migration completed: {stats}")
+            logger.info(f"Reddit ranks migration completed: {stats}")
 
         except Exception as e:
-            print(f"Error during Reddit ranks migration: {e}")
+            logger.error(f"Error during Reddit ranks migration: {e}", exc_info=True)
             self.DEGRADED = True
             reason = inspector.current_name()
             self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
@@ -362,7 +364,7 @@ class Bot:
         if not comment.body.startswith("/"):
             return comment_data
 
-        print(f"Processing slash command: {comment.body}")
+        logger.info(f"Processing slash command: {comment.body}")
         # Split the comment into project and command
         parts = comment.body[1:].split()
         project = parts[0]
@@ -406,7 +408,7 @@ class Bot:
                     if test:
                         return comment
             except prawcore.exceptions.ServerError as e:
-                print(f"Server Error: {e}")
+                logger.error(f"Server Error: {e}", exc_info=True)
                 self.DEGRADED = True
                 self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
                 time.sleep(60)
@@ -429,7 +431,7 @@ class Bot:
                     if test:
                         return submission
             except prawcore.exceptions.ServerError as e:
-                print(f"Server Error: {e}")
+                logger.error(f"Server Error: {e}", exc_info=True)
                 self.DEGRADED = True
                 self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
                 time.sleep(60)
@@ -448,14 +450,14 @@ class Bot:
             self.bot_thread = threading.Thread(target=self.start, daemon=True)
             self.bot_thread.start()
         except KeyboardInterrupt:
-            print("Keyboard Interrupt Detected")
+            logger.info("Keyboard Interrupt Detected")
             self.DEGRADED = True
             reason = inspector.current_name()
             self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
             self.stop()
 
     def stop(self):
-        print("Attempting to stop reddit bot")
+        logger.info("Attempting to stop reddit bot")
         self.STOP_SIGNAL = True
         self.DEGRADED = True
         reason = inspector.current_name()
@@ -464,4 +466,4 @@ class Bot:
             self.comment_thread.join()
             self.submission_thread.join()
             self.bot_thread.join()
-            print("Reddit bot stopped")
+            logger.info("Reddit bot stopped")

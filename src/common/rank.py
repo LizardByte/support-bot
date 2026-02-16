@@ -1,5 +1,6 @@
 # standard imports
 from datetime import datetime, UTC
+import logging
 import math
 import random
 import threading
@@ -16,6 +17,9 @@ from src.common import database
 from src.common import globals
 from src.common.rank_database import RankDatabase
 from src.discord_bot.bot import Bot
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 # Global migration lock to prevent concurrent migrations
 MIGRATION_LOCK = threading.Lock()
@@ -160,7 +164,7 @@ class RankSystem:
         )
         user_id = user.id
 
-        print(f"Getting rank data for user {user_id} in community {community_id} on platform {platform}")
+        logger.info(f"Getting rank data for user {user_id} in community {community_id} on platform {platform}")
 
         user_data = self.db.get_user_data(
             platform=platform,
@@ -494,12 +498,12 @@ class RankSystem:
         try:
             author = reddit_bot.fetch_user(name=author_name)
         except Exception as e:
-            print(f"Error fetching author '{author_name}' for {item_type}: {type(e).__name__}: {e}")
+            logger.warning(f"Error fetching author '{author_name}' for {item_type}: {type(e).__name__}: {e}")
             return False, True
 
         # Skip items without valid author
         if not author or not hasattr(author, 'id'):
-            print(f"Invalid author object for '{author_name}', skipping {item_type}")
+            logger.warning(f"Invalid author object for '{author_name}', skipping {item_type}")
             return False, True
 
         # Award random XP in range
@@ -540,18 +544,18 @@ class RankSystem:
         updated_users = 0
         total_users = len(user_xp_map)
 
-        print(f"Updating {total_users} users in rank database")
+        logger.info(f"Updating {total_users} users in rank database")
 
         with self.db as db:
             table = db.table('reddit_users')
 
             # Build a lookup map of existing users for faster access
-            print("Building lookup map of existing users...")
+            logger.info("Building lookup map of existing users...")
             existing_users_map = {}
             for item in table.all():
                 key = (item.get('user_id'), item.get('community_id'))
                 existing_users_map[key] = item
-            print(f"Found {len(existing_users_map)} existing users")
+            logger.info(f"Found {len(existing_users_map)} existing users")
 
             # Process each user
             processed = 0
@@ -585,9 +589,9 @@ class RankSystem:
                 processed += 1
                 # Print progress every 50 users
                 if processed % 50 == 0:
-                    print(f"Progress: {processed}/{total_users} users processed")
+                    logger.info(f"Progress: {processed}/{total_users} users processed")
 
-            print(f"Finished updating {total_users} users")
+            logger.info(f"Finished updating {total_users} users")
 
         return new_users, updated_users
 
@@ -607,14 +611,14 @@ class RankSystem:
         original_git_enabled = database.GIT_ENABLED
         database.GIT_ENABLED = False  # Disable Git for this operation
 
-        print("Starting Reddit ranks migration")
+        logger.info("Starting Reddit ranks migration")
 
         try:
             # Process submissions
             with reddit_db as db:
                 submissions_table = db.table('submissions')
 
-                print(f"Processing {len(submissions_table.all())} submissions")
+                logger.info(f"Processing {len(submissions_table.all())} submissions")
                 for submission in submissions_table.all():
                     try:
                         success, skipped = self._process_reddit_item(
@@ -626,13 +630,14 @@ class RankSystem:
                             skipped_submissions += 1
                     except Exception as e:
                         author_name = submission.get('author', 'unknown')
-                        print(f"Unexpected error processing submission by '{author_name}': {type(e).__name__}: {e}")
+                        logger.error(
+                            f"Unexpected error processing submission by '{author_name}': {type(e).__name__}: {e}")
                         skipped_submissions += 1
 
                 # Process comments
                 comments_table = db.table('comments')
 
-                print(f"Processing {len(comments_table.all())} comments")
+                logger.info(f"Processing {len(comments_table.all())} comments")
                 for comment in comments_table.all():
                     try:
                         success, skipped = self._process_reddit_item(
@@ -644,14 +649,14 @@ class RankSystem:
                             skipped_comments += 1
                     except Exception as e:
                         author_name = comment.get('author', 'unknown')
-                        print(f"Unexpected error processing comment by '{author_name}': {type(e).__name__}: {e}")
+                        logger.error(f"Unexpected error processing comment by '{author_name}': {type(e).__name__}: {e}")
                         skipped_comments += 1
 
             # Update the rank database
             new_users, updated_users = self._update_reddit_rank_database(community_id, user_xp_map)
 
         except Exception as e:
-            print(f"Error during Reddit migration: {type(e).__name__}: {e}")
+            logger.error(f"Error during Reddit migration: {type(e).__name__}: {e}", exc_info=True)
             database.GIT_ENABLED = original_git_enabled
             raise
 
@@ -672,7 +677,7 @@ class RankSystem:
             'date': datetime.now(UTC).isoformat(),
         }
 
-        print(f"Reddit migration completed with stats: {stats}")
+        logger.info(f"Reddit migration completed with stats: {stats}")
         return stats
 
     async def migrate_from_mee6(self, guild_id: int) -> Dict[str, Union[int, str]]:
@@ -726,29 +731,29 @@ class RankSystem:
             List of player data, or None if fetch failed
         """
         url = f"https://mee6.xyz/api/plugins/levels/leaderboard/{guild_id}?page={page}"
-        print(f"Fetching Mee6 data from: {url}")
+        logger.info(f"Fetching Mee6 data from: {url}")
 
         try:
             async with session.get(url, timeout=10) as response:
                 if response.status != 200:
-                    print(f"Received status code {response.status}, stopping migration")
+                    logger.warning(f"Received status code {response.status}, stopping migration")
                     return None
 
                 data = await response.json()
 
                 if not data.get('players') or len(data['players']) == 0:
-                    print("No more players found, stopping migration")
+                    logger.info("No more players found, stopping migration")
                     return None
 
                 player_count = len(data['players'])
-                print(f"Processing {player_count} players from page {page}")
+                logger.info(f"Processing {player_count} players from page {page}")
                 return data['players']
 
         except aiohttp.ClientError as e:
-            print(f"HTTP error during migration: {e}")
+            logger.error(f"HTTP error during migration: {e}", exc_info=True)
             return None
         except Exception as e:
-            print(f"Unexpected error during migration: {e}")
+            logger.error(f"Unexpected error during migration: {e}", exc_info=True)
             import traceback
             traceback.print_exc()
             return None
@@ -846,7 +851,7 @@ class RankSystem:
                 page += 1
 
         # Now apply all updates in batches
-        print(f"Applying {len(batch_updates)} user updates in batches")
+        logger.info(f"Applying {len(batch_updates)} user updates in batches")
         BATCH_SIZE = 100
 
         for i in range(0, len(batch_updates), BATCH_SIZE):
@@ -854,7 +859,7 @@ class RankSystem:
             batch_new, batch_updated = self._process_mee6_batch(guild_id, batch)
             new_users += batch_new
             updated_users += batch_updated
-            print(f"Completed batch {i//BATCH_SIZE + 1}/{(len(batch_updates)-1)//BATCH_SIZE + 1}")
+            logger.info(f"Completed batch {i//BATCH_SIZE + 1}/{(len(batch_updates)-1)//BATCH_SIZE + 1}")
 
         # Restore original Git state and force one final sync
         database.GIT_ENABLED = original_git_enabled
@@ -869,5 +874,5 @@ class RankSystem:
             'date': datetime.now(UTC).isoformat(),
         }
 
-        print(f"Migration completed with stats: {stats}")
+        logger.info(f"Migration completed with stats: {stats}")
         return stats

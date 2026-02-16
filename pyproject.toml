@@ -21,6 +21,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "colorlog==6.10.1",
     "cryptography==46.0.5",
     "Flask==3.1.2",
     "Flask-WTF==1.2.2",
