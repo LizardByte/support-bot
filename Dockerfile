@@ -14,25 +14,27 @@ ENV BUILD_VERSION=${BUILD_VERSION}
 ENV COMMIT=${COMMIT}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-# install dependencies
-RUN <<_DEPS
-#!/bin/bash
-set -e
-apt-get update -y
-apt-get install -y --no-install-recommends \
-  git
-apt-get clean
-rm -rf /var/lib/apt/lists/*
-_DEPS
 
 VOLUME /data
-
 WORKDIR /app/
 
-COPY . .
+# Copy only necessary files for installation and runtime
+COPY pyproject.toml .
+COPY src/ src/
+COPY assets/ assets/
+
 RUN <<_SETUP
 #!/bin/bash
 set -e
+
+# install system dependencies
+apt-get update -y
+apt-get install -y --no-install-recommends git
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+
+# create non-root user
+useradd -m -u 1000 -s /bin/bash supportbot
 
 # write the version to the version file
 cat > src/common/version.py <<EOF
@@ -41,8 +43,15 @@ cat > src/common/version.py <<EOF
 __version__ = "${BUILD_VERSION}"
 EOF
 
-# install dependencies
+# install python dependencies
 python -m pip install --no-cache-dir .
+
+# set ownership of app and data directories
+mkdir -p /data
+chown -R supportbot:supportbot /app /data
 _SETUP
+
+# switch to non-root user
+USER supportbot
 
 CMD ["python", "-m", "src"]

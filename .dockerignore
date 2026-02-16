@@ -4,12 +4,22 @@
 # ignore hidden files
 .*
 
+# Dockerfile
+Dockerfile
+*.dockerfile
+
 # ignore directories
 docs/
 tests/
 
 # ignore venv when building locally
+.venv/
 venv/
 
+# python
+*.egg-info/
+build/
+
 data/
+junit.xml
 sample.env
