@@ -1,5 +1,11 @@
+# standard imports
+import logging
+
 # lib imports
 from praw import models
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 class RedditRankManager:
@@ -74,7 +80,7 @@ class RedditRankManager:
                 'xp_for_next_level': next_level_xp - user_data['xp']
             }
         except Exception as e:
-            print(f"Error getting rank for Reddit user {username}: {e}")
+            logger.error(f"Error getting rank for Reddit user {username}: {e}", exc_info=True)
             return None
 
     def get_leaderboard(self, limit: int = 10, offset: int = 0):
@@ -107,7 +113,7 @@ class RedditRankManager:
 
             return leaderboard
         except Exception as e:
-            print(f"Error getting Reddit leaderboard: {e}")
+            logger.error(f"Error getting Reddit leaderboard: {e}", exc_info=True)
             return []
 
     def respond_to_rank_command(self, comment: models.Comment):
@@ -169,7 +175,7 @@ class RedditRankManager:
             return True
 
         except Exception as e:
-            print(f"Error responding to rank command: {e}")
+            logger.error(f"Error responding to rank command: {e}", exc_info=True)
             return False
 
     def respond_to_leaderboard_command(self, comment: models.Comment):
@@ -231,5 +237,5 @@ class RedditRankManager:
             return True
 
         except Exception as e:
-            print(f"Error responding to leaderboard command: {e}")
+            logger.error(f"Error responding to leaderboard command: {e}", exc_info=True)
             return False

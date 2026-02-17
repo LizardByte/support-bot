@@ -1,9 +1,13 @@
 # standard imports
+import logging
 import os
 from typing import Union
 
 # lib imports
 import requests
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 tier_map = {
@@ -66,8 +70,7 @@ def get_github_sponsors() -> Union[dict, False]:
     data = response.json()
 
     if 'errors' in data or 'message' in data:
-        print(data)
-        print('::error::An error occurred while fetching sponsors.')
+        logger.error(f"Error fetching sponsors: {data}")
         return False
 
     return data

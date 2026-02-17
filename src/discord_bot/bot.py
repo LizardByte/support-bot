@@ -1,5 +1,6 @@
 # standard imports
 import asyncio
+import logging
 import os
 import threading
 from typing import Literal, Optional
@@ -11,6 +12,9 @@ import discord
 from src.common.common import bot_name, get_avatar_bytes, org_name
 from src.common.database import Database
 from src.discord_bot.views import DonateCommandView
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 class Bot(discord.Bot):
@@ -55,9 +59,9 @@ class Bot(discord.Bot):
         This function runs when the discord bot is ready. The function will update the bot presence, update the username
         and avatar, and start tasks.
         """
-        print(f'py-cord version: {discord.__version__}')
-        print(f'Logged in as {self.user.name} (ID: {self.user.id})')
-        print(f'Servers connected to: {self.guilds}')
+        logger.info(f'py-cord version: {discord.__version__}')
+        logger.info(f'Logged in as {self.user.name} (ID: {self.user.id})')
+        logger.info(f'Servers connected to: {self.guilds}')
 
         # update the username and avatar
         avatar_img = get_avatar_bytes()
@@ -115,7 +119,7 @@ class Bot(discord.Bot):
         try:
             return await channel.send(content=message, embed=embed)
         except Exception as e:
-            print(f"Error sending message: {e}")
+            logger.error(f"Error sending message: {e}", exc_info=True)
             self.DEGRADED = True
 
     def send_message(
@@ -266,17 +270,17 @@ class Bot(discord.Bot):
             )
             self.bot_thread.start()
         except KeyboardInterrupt:
-            print("Keyboard Interrupt Detected")
+            logger.info("Keyboard Interrupt Detected")
             self.DEGRADED = True
             self.stop()
 
     def stop(self, future: asyncio.Future = None):
-        print("Attempting to stop tasks")
+        logger.info("Attempting to stop tasks")
         self.DEGRADED = True
         self.role_update_task.stop()
         self.clean_ephemeral_cache.stop()
-        print("Attempting to close bot connection")
+        logger.info("Attempting to close bot connection")
         if self.bot_thread is not None and self.bot_thread.is_alive():
             asyncio.run_coroutine_threadsafe(self.close(), self.loop)
             self.bot_thread.join()
-        print("Closed bot")
+        logger.info("Closed bot")

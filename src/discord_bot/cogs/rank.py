@@ -1,4 +1,5 @@
 # standard imports
+import logging
 import os
 from typing import Union
 
@@ -10,6 +11,9 @@ from discord.ext import commands, tasks
 # local imports
 from src.common.rank import RankSystem
 from src.common import globals
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 class RankCog(discord.Cog):
@@ -58,7 +62,7 @@ class RankCog(discord.Cog):
                             embed.set_thumbnail(url=user.display_avatar.url)
                             await channel.send(embed=embed)
                 except Exception as e:
-                    print(f"Error handling level up notification: {e}")
+                    logger.error(f"Error handling level up notification: {e}", exc_info=True)
 
         # Clear the set for the next minute
         self.active_users.clear()
@@ -513,11 +517,11 @@ class RankCog(discord.Cog):
                 source_id=guild.id,
             )
             if migration_status:
-                print(f"Mee6 migration already completed for guild: {guild.name} ({guild.id})")
+                logger.info(f"Mee6 migration already completed for guild: {guild.name} ({guild.id})")
                 continue  # Skip if already migrated
 
             try:
-                print(f"Starting automatic Mee6 migration for guild: {guild.name} ({guild.id})")
+                logger.info(f"Starting automatic Mee6 migration for guild: {guild.name} ({guild.id})")
                 result = await self.rank_system.migrate_from_mee6(guild_id=guild.id)
 
                 # Save migration status
@@ -528,7 +532,7 @@ class RankCog(discord.Cog):
                     stats=result,
                 )
 
-                print(f"Completed Mee6 migration for {guild.name}: {result['total_processed']} users processed")
+                logger.info(f"Completed Mee6 migration for {guild.name}: {result['total_processed']} users processed")
 
                 # Optional: Notify in a system channel or log channel
                 system_channel = guild.system_channel
@@ -548,7 +552,7 @@ class RankCog(discord.Cog):
                         pass  # Silently fail if can't send
 
             except Exception as e:
-                print(f"Error during automatic Mee6 migration for guild {guild.id}: {e}")
+                logger.error(f"Error during automatic Mee6 migration for guild {guild.id}: {e}", exc_info=True)
 
 
 def setup(bot):

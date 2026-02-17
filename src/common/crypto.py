@@ -1,4 +1,5 @@
 # standard imports
+import logging
 import os
 
 # lib imports
@@ -11,6 +12,9 @@ from datetime import datetime, timedelta, UTC
 
 # local imports
 from src.common import common
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 CERT_FILE = os.path.join(common.data_dir, "cert.pem")
 KEY_FILE = os.path.join(common.data_dir, "key.pem")
@@ -58,12 +62,13 @@ def generate_certificate():
 
 
 def initialize_certificate() -> tuple[str, str]:
-    print("Initializing SSL certificate")
+    logger.info("Initializing SSL certificate")
     if os.path.exists(CERT_FILE) and os.path.exists(KEY_FILE):
         cert_expires_in = check_expiration(CERT_FILE)
-        print(f"Certificate expires in {cert_expires_in} days.")
+        logger.info(f"Certificate expires in {cert_expires_in} days.")
         if cert_expires_in >= 90:
             return CERT_FILE, KEY_FILE
-    print("Generating new certificate")
+
+    logger.info("Generating new certificate")
     generate_certificate()
     return CERT_FILE, KEY_FILE

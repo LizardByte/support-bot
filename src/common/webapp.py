@@ -1,6 +1,7 @@
 # standard imports
 import asyncio
 import html
+import logging
 import os
 from threading import Thread
 from typing import Tuple
@@ -17,6 +18,9 @@ from src.common.common import app_dir, colors, version
 from src.common import crypto
 from src.common import globals
 from src.common import time
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
@@ -290,9 +294,9 @@ def webhook(source: str, key: str) -> Tuple[Response, int]:
     if key != os.getenv("GITHUB_WEBHOOK_SECRET_KEY"):
         return jsonify({"status": "error", "message": "Invalid key"}), 400
 
-    print(f"received webhook from {source}")
+    logger.info(f"received webhook from {source}")
     data = request.json
-    print(f"received webhook data: \n{data}")
+    logger.info(f"received webhook data: \n{data}")
 
     # process the webhook data
     if source == "github_sponsors":
