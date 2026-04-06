@@ -45,6 +45,7 @@ platforms such as GitHub discussions/issues might be added in the future.
 |----------------------------------|----------|------------------------------------------------------|--------------------------------------------------------------------------------------------|
 | DATA_REPO                        | False    | `https://github.com/LizardByte/support-bot-data`     | Repository to store persistent data. This repository should be private!                    |
 | DATA_REPO_BRANCH                 | False    | `master`                                             | Branch to store persistent data.                                                           |
+| DISCORD_AUTOBAN_CHANNEL_ID       | False    | `None`                                               | Channel ID where any message posted results in an automatic ban (7-day message deletion).  |
 | DISCORD_BOT_TOKEN                | True     | `None`                                               | Token from Bot page on discord developer portal.                                           |
 | DISCORD_CLIENT_ID                | True     | `None`                                               | Discord OAuth2 client id.                                                                  |
 | DISCORD_CLIENT_SECRET            | True     | `None`                                               | Discord OAuth2 client secret.                                                              |
