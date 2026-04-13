@@ -52,12 +52,20 @@ class AutoBanCog(discord.Cog):
                 reason="Automatic ban: posted in restricted channel.",
                 delete_message_seconds=604800,  # Delete messages from the past 7 days
             )
+            # repr() sanitizes the content, escaping newlines and other special characters
+            # to prevent log injection attacks.
+            safe_content = repr(message.content)
+            attachment_urls = [a.url for a in message.attachments]
             logger.warning(
-                "Auto-banned user %s (%s) for posting in channel %s (%s).",
+                "Auto-banned user %s (%s) for posting in channel %s (%s). "
+                "Message content: %s. "
+                "Attachments: %s.",
                 message.author,
                 message.author.id,
                 message.channel.name,
                 message.channel.id,
+                safe_content,
+                attachment_urls,
             )
         except discord.Forbidden:
             logger.error(
