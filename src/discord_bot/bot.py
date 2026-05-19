@@ -39,6 +39,7 @@ class Bot(discord.Bot):
         self.DEGRADED = False
 
         self.bot_thread = threading.Thread(target=lambda: None)
+        self._stopping = False
         self.token = os.environ['DISCORD_BOT_TOKEN']
         self.db = Database(db_name='discord_bot_database')
         self.ephemeral_db = {}
@@ -260,12 +261,21 @@ class Bot(discord.Bot):
             ), self.loop)
         return future.result()
 
+    def _run_threaded(self):
+        try:
+            self.loop.run_until_complete(self.start(token=self.token))
+        except RuntimeError as e:
+            if self._stopping and str(e) == "Session is closed":
+                logger.debug("Discord bot startup stopped while closing")
+                return
+            raise
+
     def start_threaded(self):
         try:
             # Login the bot in a separate thread
+            self._stopping = False
             self.bot_thread = threading.Thread(
-                target=self.loop.run_until_complete,
-                args=(self.start(token=self.token),),
+                target=self._run_threaded,
                 daemon=True
             )
             self.bot_thread.start()
@@ -281,6 +291,7 @@ class Bot(discord.Bot):
         self.clean_ephemeral_cache.stop()
         logger.info("Attempting to close bot connection")
         if self.bot_thread is not None and self.bot_thread.is_alive():
+            self._stopping = True
             asyncio.run_coroutine_threadsafe(self.close(), self.loop)
             self.bot_thread.join()
         logger.info("Closed bot")
