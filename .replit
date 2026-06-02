@@ -1,5 +1,5 @@
 # The command that is executed when the run button is clicked.
-run = ["python", "src/main.py"]
+run = ["uv", "run", "--locked", "python", "-m", "src"]
 
 # The default file opened in the editor.
 entrypoint = "README.md"

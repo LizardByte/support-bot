@@ -77,19 +77,25 @@ platforms such as GitHub discussions/issues might be added in the future.
 Install the project and its dependencies:
 
 ```bash
-python -m pip install -e .
+uv sync --locked
 ```
 
 For development (includes test dependencies):
 
 ```bash
-python -m pip install -e ".[dev]"
+uv sync --locked --extra dev
+```
+
+Run tests:
+
+```bash
+uv run --locked --extra dev pytest
 ```
 
 ### Start
 
 ```bash
-python -m src
+uv run --locked python -m src
 ```
 
 * Invite bot to server:
