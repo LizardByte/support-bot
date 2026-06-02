@@ -72,6 +72,7 @@ addopts = [
     "--color=yes",
     "--cov=src",
     "--cov-report=term-missing",
+    "--cov-report=xml:coverage.xml",
     "--junitxml=junit.xml",
     "-o", "junit_family=legacy",
 ]

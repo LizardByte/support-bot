@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # artifacts: false
 # platforms: linux/amd64
-FROM python:3.14-slim-bookworm
+FROM ghcr.io/astral-sh/uv:0.11-python3.14-trixie-slim
 
 # CI args
 ARG BRANCH
@@ -12,6 +12,9 @@ ARG COMMIT
 ENV BRANCH=${BRANCH}
 ENV BUILD_VERSION=${BUILD_VERSION}
 ENV COMMIT=${COMMIT}
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -19,7 +22,7 @@ VOLUME /data
 WORKDIR /app/
 
 # Copy only necessary files for installation and runtime
-COPY pyproject.toml .
+COPY pyproject.toml uv.lock README.md ./
 COPY src/ src/
 COPY assets/ assets/
 
@@ -44,11 +47,11 @@ __version__ = "${BUILD_VERSION}"
 EOF
 
 # install python dependencies
-python -m pip install --no-cache-dir .
+uv sync --frozen --no-dev --no-install-project --python python --no-python-downloads
 
 # set ownership of app and data directories
 mkdir -p /data
-chown -R supportbot:supportbot /app /data
+chown -R supportbot:supportbot /app /data "${VIRTUAL_ENV}"
 _SETUP
 
 # switch to non-root user
