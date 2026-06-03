@@ -650,8 +650,7 @@ class TestDatabase:
                 db.sync()
 
         # Verify push was called with correctly formatted URL
-        # NOSONAR(S2068) okay in tests
-        expected_url = "https://myuser:mytoken123@github.com/LizardByte/support-bot-data"
+        expected_url = "https://myuser:mytoken123@github.com/LizardByte/support-bot-data"  # NOSONAR(S2068) just a test
         db.repo.git.push.assert_called_once_with(expected_url, "master")
 
     def test_configure_repo_called_during_sync(self, db_init, cleanup_files):
