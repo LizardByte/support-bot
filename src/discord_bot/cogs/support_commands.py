@@ -1,4 +1,5 @@
 # standard imports
+import asyncio
 import datetime
 import os
 
@@ -119,12 +120,7 @@ class SupportCommandsCog(discord.Cog):
                 # Determine the command file path
                 command_file = os.path.join(project_dir, f"{command}.md")
 
-                # Read the command file
-                with open(command_file, "r", encoding='utf-8') as file:
-                    with MarkdownRenderer(
-                            max_line_length=4096,  # this must be set to reflow the text
-                            normalize_whitespace=True) as renderer:
-                        description = renderer.render(mistletoe.Document(file))
+                description = await asyncio.to_thread(self.render_command_file, command_file)
 
                 source_url = (f"{self.repo_url}/blob/{self.repo_branch}/{self.relative_commands_dir}/"
                               f"{project}/{command}.md")
@@ -140,6 +136,14 @@ class SupportCommandsCog(discord.Cog):
                 await ctx.respond(embed=embed, ephemeral=False)
 
         self.commands[project] = project_command
+
+    @staticmethod
+    def render_command_file(command_file: str) -> str:
+        with open(command_file, "r", encoding='utf-8') as file:
+            with MarkdownRenderer(
+                    max_line_length=4096,  # this must be set to reflow the text
+                    normalize_whitespace=True) as renderer:
+                return renderer.render(mistletoe.Document(file))
 
     @discord.slash_command(
         name="docs",

@@ -2,9 +2,9 @@
 import random
 
 # lib imports
+import aiohttp
 import discord
 from discord.commands import Option
-import requests
 
 # local imports
 from src.common.common import avatar, bot_name, colors
@@ -15,6 +15,12 @@ from src.discord_bot import cogs_common
 class FunCommandsCog(discord.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    async def get_random_quotes(self) -> list[dict]:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url='https://app.lizardbyte.dev/uno/random-quotes/games.json') as response:
+                response.raise_for_status()
+                return await response.json()
 
     @discord.slash_command(
         name="random",
@@ -39,7 +45,7 @@ class FunCommandsCog(discord.Cog):
         user : discord.Member
             Username to mention in response.
         """
-        quotes = requests.get(url='https://app.lizardbyte.dev/uno/random-quotes/games.json').json()
+        quotes = await self.get_random_quotes()
 
         quote_index = random.choice(seq=quotes)
         quote = quote_index['quote']

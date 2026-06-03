@@ -353,11 +353,13 @@ class Bot:
         return submission_data
 
     def flair(self, submission: models.Submission, submission_data: dict) -> dict:
-        # todo
+        # TODO: implement automatic flair checks or updates from submission metadata.
+        logger.debug("Reddit flair handling is not implemented for submission=%r", submission)
         return submission_data
 
     def karma(self, submission: models.Submission, submission_data: dict) -> dict:
-        # todo
+        # TODO: implement post-karma handling for submission ranking or moderation.
+        logger.debug("Reddit karma handling is not implemented for submission=%r", submission)
         return submission_data
 
     def slash_commands(self, comment: models.Comment, comment_data: dict) -> dict:
