@@ -61,8 +61,8 @@ class RankCog(discord.Cog):
                             )
                             embed.set_thumbnail(url=user.display_avatar.url)
                             await channel.send(embed=embed)
-                except Exception as e:
-                    logger.error(f"Error handling level up notification: {e}", exc_info=True)
+                except Exception:
+                    logger.exception("Error handling level up notification")
 
         # Clear the set for the next minute
         self.active_users.clear()
@@ -551,8 +551,8 @@ class RankCog(discord.Cog):
                     except discord.HTTPException:
                         pass  # Silently fail if can't send
 
-            except Exception as e:
-                logger.error(f"Error during automatic Mee6 migration for guild {guild.id}: {e}", exc_info=True)
+            except Exception:
+                logger.exception(f"Error during automatic Mee6 migration for guild {guild.id}")
 
 
 def setup(bot):

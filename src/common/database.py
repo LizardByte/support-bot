@@ -103,8 +103,8 @@ class Database:
                         try:
                             self.repo.git.push('--set-upstream', 'origin', self.repo_branch)
                             logger.info(f"Created and pushed new empty branch '{self.repo_branch}'")
-                        except git.exc.GitCommandError as e:
-                            logger.error(f"Failed to push new branch: {str(e)}")
+                        except git.exc.GitCommandError:
+                            logger.exception("Failed to push new branch")
                             # Continue anyway - we might not have push permissions
                     else:
                         # Re-raise if it's a different error
@@ -184,8 +184,8 @@ class Database:
             try:
                 origin = self.repo.remote('origin')
                 origin.set_url(new_url)
-            except git.exc.GitCommandError as e:
-                logger.error(f"Failed to update remote URL: {str(e)}")
+            except git.exc.GitCommandError:
+                logger.exception("Failed to update remote URL")
                 # Continue anyway, might work with stored credentials
 
     def _check_for_migration(self):
@@ -270,8 +270,8 @@ class Database:
                 migration_db.close()
 
             logger.info(f"Migration completed successfully: {self.json_path}")
-        except Exception as e:
-            logger.error(f"Migration failed: {str(e)}")
+        except Exception:
+            logger.exception("Migration failed")
 
     def __enter__(self):
         self.lock.acquire()
@@ -327,11 +327,11 @@ class Database:
                                     push_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
                                     self.repo.git.push(push_url, self.repo_branch)
                                     logger.info("Pushed changes to remote git data repository")
-                                except git.exc.GitCommandError as e:
-                                    logger.error(f"Failed to push changes: {str(e)}")
+                                except git.exc.GitCommandError:
+                                    logger.exception("Failed to push changes")
 
-                    except Exception as e:
-                        logger.error(f"Git operation failed: {str(e)}")
+                    except Exception:
+                        logger.exception("Git operation failed")
         finally:
             # Ensure database is ready for next use
             if self.tinydb is None:

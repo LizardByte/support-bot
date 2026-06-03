@@ -79,8 +79,8 @@ class RedditRankManager:
                 'progress': progress,
                 'xp_for_next_level': next_level_xp - user_data['xp']
             }
-        except Exception as e:
-            logger.error(f"Error getting rank for Reddit user {username}: {e}", exc_info=True)
+        except Exception:
+            logger.exception(f"Error getting rank for Reddit user {username}")
             return None
 
     def get_leaderboard(self, limit: int = 10, offset: int = 0):
@@ -112,8 +112,8 @@ class RedditRankManager:
                 entry['level'] = self.rank_system.calculate_level(entry['xp'])
 
             return leaderboard
-        except Exception as e:
-            logger.error(f"Error getting Reddit leaderboard: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error getting Reddit leaderboard")
             return []
 
     def respond_to_rank_command(self, comment: models.Comment):
@@ -174,8 +174,8 @@ class RedditRankManager:
             comment.reply(response)
             return True
 
-        except Exception as e:
-            logger.error(f"Error responding to rank command: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error responding to rank command")
             return False
 
     def respond_to_leaderboard_command(self, comment: models.Comment):
@@ -236,6 +236,6 @@ class RedditRankManager:
             comment.reply(response)
             return True
 
-        except Exception as e:
-            logger.error(f"Error responding to leaderboard command: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error responding to leaderboard command")
             return False
