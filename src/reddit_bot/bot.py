@@ -175,38 +175,15 @@ class Bot:
             existing_submission = submissions_table.get(q.reddit_id == submission.id)
 
             if existing_submission:
-                # Extract submission data to store
-                submission_data = {
-                    'reddit_id': submission.id,  # Store Reddit ID as a regular field
-                    'title': submission.title,
-                    'selftext': submission.selftext,
-                    'author': str(submission.author),
-                    'created_utc': submission.created_utc,
-                    'permalink': submission.permalink,
-                    'url': submission.url,
-                    'link_flair_text': submission.link_flair_text if hasattr(submission, 'link_flair_text') else None,
-                    'link_flair_background_color': submission.link_flair_background_color if hasattr(
-                        submission, 'link_flair_background_color') else None,
-                    'bot_discord': existing_submission.get(
-                        'bot_discord', {'sent': False, 'sent_utc': None}),
-                }
+                submission_data = self._submission_data(
+                    submission=submission,
+                    bot_discord=existing_submission.get('bot_discord'),
+                )
+                submission_data = self.flair(submission=submission, submission_data=submission_data)
                 submissions_table.update(submission_data, q.reddit_id == submission.id)
                 return
 
-        # Extract submission data to store
-        submission_data = {
-            'reddit_id': submission.id,  # Store Reddit ID as a regular field
-            'title': submission.title,
-            'selftext': submission.selftext,
-            'author': str(submission.author),
-            'created_utc': submission.created_utc,
-            'permalink': submission.permalink,
-            'url': submission.url,
-            'link_flair_text': submission.link_flair_text if hasattr(submission, 'link_flair_text') else None,
-            'link_flair_background_color': submission.link_flair_background_color if hasattr(
-                submission, 'link_flair_background_color') else None,
-            'bot_discord': {'sent': False, 'sent_utc': None},
-        }
+        submission_data = self._submission_data(submission=submission)
 
         logger.info(f"New submission: {submission_data}")
 
@@ -220,14 +197,33 @@ class Bot:
         except Exception:
             logger.exception("Error awarding XP")
 
+        submission_data = self.flair(submission=submission, submission_data=submission_data)
         if os.getenv('DISCORD_REDDIT_CHANNEL_ID'):
             submission_data = self.discord(submission=submission, submission_data=submission_data)
-        submission_data = self.flair(submission=submission, submission_data=submission_data)
         submission_data = self.karma(submission=submission, submission_data=submission_data)
 
         with self.db as db:
             submissions_table = db.table('submissions')
             submissions_table.insert(submission_data)
+
+    @staticmethod
+    def _submission_data(submission: models.Submission, bot_discord: Optional[dict] = None) -> dict:
+        if bot_discord is None:
+            bot_discord = {'sent': False, 'sent_utc': None}
+
+        return {
+            'reddit_id': submission.id,  # Store Reddit ID as a regular field
+            'title': submission.title,
+            'selftext': submission.selftext,
+            'author': str(submission.author),
+            'created_utc': submission.created_utc,
+            'permalink': submission.permalink,
+            'url': submission.url,
+            'link_flair_template_id': getattr(submission, 'link_flair_template_id', None),
+            'link_flair_text': getattr(submission, 'link_flair_text', None),
+            'link_flair_background_color': getattr(submission, 'link_flair_background_color', None),
+            'bot_discord': bot_discord,
+        }
 
     def award_reddit_xp(self, user: models.Redditor):
         """
@@ -305,11 +301,12 @@ class Bot:
         submission_data : dict
             The submission data to process.
         """
-        # get the flair color
-        try:
-            color = int(submission.link_flair_background_color, 16)
-        except Exception:
-            color = common.colors['white']
+        flair_data = submission_data.get('flair', {})
+        color = flair_data.get('color') or self.parse_flair_color(submission_data.get('link_flair_background_color'))
+
+        footer_parts = [f'Posted on r/{self.subreddit_name}']
+        if flair_data.get('text'):
+            footer_parts.append(flair_data['text'])
 
         try:
             redditor = self.fetch_user(name=submission.author)
@@ -329,7 +326,7 @@ class Bot:
             color=color,
             description=submission.selftext,
             footer=discord.EmbedFooter(
-                text=f'Posted on r/{self.subreddit_name}',
+                text=' - '.join(footer_parts),
                 icon_url='https://www.redditstatic.com/desktop2x/img/favicon/favicon-32x32.png'
             ),
             title=submission.title,
@@ -352,9 +349,31 @@ class Bot:
 
         return submission_data
 
+    @staticmethod
+    def parse_flair_color(flair_color: Optional[str]) -> int:
+        if not flair_color:
+            return common.colors['white']
+
+        try:
+            return int(flair_color.removeprefix('#'), 16)
+        except ValueError:
+            return common.colors['white']
+
     def flair(self, submission: models.Submission, submission_data: dict) -> dict:
-        # TODO: implement automatic flair checks or updates from submission metadata.
-        logger.debug("Reddit flair handling is not implemented for submission=%r", submission)
+        flair_template_id = getattr(submission, 'link_flair_template_id', None)
+        flair_text = getattr(submission, 'link_flair_text', None)
+        flair_background_color = getattr(submission, 'link_flair_background_color', None)
+
+        submission_data['link_flair_template_id'] = flair_template_id
+        submission_data['link_flair_text'] = flair_text
+        submission_data['link_flair_background_color'] = flair_background_color
+        submission_data['flair'] = {
+            'template_id': flair_template_id,
+            'text': flair_text,
+            'background_color': flair_background_color,
+            'color': self.parse_flair_color(flair_background_color),
+        }
+
         return submission_data
 
     def karma(self, submission: models.Submission, submission_data: dict) -> dict:

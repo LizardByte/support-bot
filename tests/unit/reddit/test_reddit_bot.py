@@ -19,6 +19,7 @@ import prawcore
 import pytest
 
 # local imports
+from src.common import globals
 from src.reddit_bot.bot import Bot
 
 Betamax.register_serializer(PrettyJSONSerializer)
@@ -222,6 +223,72 @@ def bare_bot():
     return bot
 
 
+class QueryField:
+    def __eq__(self, other):
+        return other
+
+
+class FakeQuery:
+    reddit_id = QueryField()
+
+
+class FakeSubmissionsTable:
+    def __init__(self, existing_submission=None):
+        self.existing_submission = existing_submission
+        self.inserted = None
+        self.updated = None
+
+    def get(self, _query):
+        return self.existing_submission
+
+    def insert(self, data):
+        self.inserted = data
+
+    def update(self, data, _query):
+        self.updated = data
+
+
+class FakeRedditDatabase:
+    def __init__(self, submissions_table):
+        self.submissions_table = submissions_table
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    @staticmethod
+    def query():
+        return FakeQuery()
+
+    def table(self, name):
+        assert name == 'submissions'
+        return self.submissions_table
+
+
+class FakeAuthor:
+    name = 'test_user'
+
+    def __str__(self):
+        return self.name
+
+
+def submission():
+    return SimpleNamespace(
+        id='abc123',
+        title='Post title',
+        selftext='Post body',
+        author=FakeAuthor(),
+        created_utc=1700000000,
+        permalink='/r/LizardByte/comments/abc123/test/',
+        url='https://www.reddit.com/r/LizardByte/comments/abc123/test/',
+        link_flair_template_id='be393440-ff87-11ec-9bbd-e2c872b60c34',
+        link_flair_text='Support',
+        link_flair_background_color='#ea0027',
+    )
+
+
 def test_stream_loop_stops_before_streaming():
     bot = bare_bot()
     bot.STOP_SIGNAL = True
@@ -238,14 +305,152 @@ def test_stream_loop_stops_before_streaming():
     assert processed == []
 
 
-@pytest.mark.parametrize("method_name", ["flair", "karma"])
-def test_submission_placeholder_handlers_log_unimplemented(caplog, method_name):
+def test_process_submission_updates_existing_record():
+    bot = bare_bot()
+    table = FakeSubmissionsTable(existing_submission={
+        'bot_discord': {'sent': True, 'sent_utc': 1700000001},
+    })
+    bot.db = FakeRedditDatabase(submissions_table=table)
+
+    bot.process_submission(submission=submission())
+
+    assert table.inserted is None
+    assert table.updated['reddit_id'] == 'abc123'
+    assert table.updated['link_flair_text'] == 'Support'
+    assert table.updated['flair']['color'] == 0xea0027
+    assert table.updated['bot_discord'] == {'sent': True, 'sent_utc': 1700000001}
+
+
+def test_process_submission_inserts_new_record(mocker):
+    bot = bare_bot()
+    table = FakeSubmissionsTable()
+    bot.db = FakeRedditDatabase(submissions_table=table)
+    bot.award_reddit_xp = mocker.Mock(return_value={'level_up': True, 'level': 2})
+    bot.discord = mocker.Mock(side_effect=lambda submission, submission_data: submission_data)
+    bot.karma = mocker.Mock(side_effect=lambda submission, submission_data: submission_data)
+
+    with patch.dict(os.environ, {'DISCORD_REDDIT_CHANNEL_ID': '12345'}):
+        bot.process_submission(submission=submission())
+
+    assert table.updated is None
+    assert table.inserted['reddit_id'] == 'abc123'
+    assert table.inserted['link_flair_text'] == 'Support'
+    assert table.inserted['flair']['color'] == 0xea0027
+    assert table.inserted['bot_discord'] == {'sent': False, 'sent_utc': None}
+    bot.award_reddit_xp.assert_called_once()
+    bot.discord.assert_called_once()
+    bot.karma.assert_called_once()
+
+
+def test_process_submission_inserts_new_record_when_award_xp_fails(mocker, caplog):
+    bot = bare_bot()
+    table = FakeSubmissionsTable()
+    bot.db = FakeRedditDatabase(submissions_table=table)
+    bot.award_reddit_xp = mocker.Mock(side_effect=RuntimeError("XP failed"))
+    bot.discord = mocker.Mock(side_effect=lambda submission, submission_data: submission_data)
+    bot.karma = mocker.Mock(side_effect=lambda submission, submission_data: submission_data)
+
+    with patch.dict(os.environ, {'DISCORD_REDDIT_CHANNEL_ID': ''}):
+        with caplog.at_level(logging.ERROR, logger='src.reddit_bot.bot'):
+            bot.process_submission(submission=submission())
+
+    assert "Error awarding XP" in caplog.text
+    assert table.updated is None
+    assert table.inserted['reddit_id'] == 'abc123'
+    assert table.inserted['flair']['color'] == 0xea0027
+    assert table.inserted['bot_discord'] == {'sent': False, 'sent_utc': None}
+    bot.award_reddit_xp.assert_called_once()
+    bot.discord.assert_not_called()
+    bot.karma.assert_called_once()
+
+
+def test_submission_data_defaults():
+    submission_data = Bot._submission_data(submission=submission())
+
+    assert submission_data == {
+        'reddit_id': 'abc123',
+        'title': 'Post title',
+        'selftext': 'Post body',
+        'author': 'test_user',
+        'created_utc': 1700000000,
+        'permalink': '/r/LizardByte/comments/abc123/test/',
+        'url': 'https://www.reddit.com/r/LizardByte/comments/abc123/test/',
+        'link_flair_template_id': 'be393440-ff87-11ec-9bbd-e2c872b60c34',
+        'link_flair_text': 'Support',
+        'link_flair_background_color': '#ea0027',
+        'bot_discord': {'sent': False, 'sent_utc': None},
+    }
+
+
+def test_flair_normalizes_submission_flair():
+    bot = bare_bot()
+    submission = SimpleNamespace(
+        id='abc123',
+        link_flair_template_id='be393440-ff87-11ec-9bbd-e2c872b60c34',
+        link_flair_text='Support',
+        link_flair_background_color='#ea0027',
+    )
+    submission_data = {}
+
+    result = bot.flair(submission=submission, submission_data=submission_data)
+
+    assert result is submission_data
+    assert result['link_flair_template_id'] == 'be393440-ff87-11ec-9bbd-e2c872b60c34'
+    assert result['link_flair_text'] == 'Support'
+    assert result['link_flair_background_color'] == '#ea0027'
+    assert result['flair'] == {
+        'template_id': 'be393440-ff87-11ec-9bbd-e2c872b60c34',
+        'text': 'Support',
+        'background_color': '#ea0027',
+        'color': 0xea0027,
+    }
+
+
+def test_discord_uses_normalized_flair(mocker):
+    bot = bare_bot()
+    bot.subreddit_name = 'LizardByte'
+    bot.fetch_user = mocker.Mock(return_value=SimpleNamespace(
+        name='test_user',
+        icon_img='https://example.com/avatar.png',
+    ))
+    send_message = mocker.Mock(return_value=object())
+    mocker.patch.object(globals, 'DISCORD_BOT', SimpleNamespace(send_message=send_message))
+    submission = SimpleNamespace(
+        author='test_user',
+        created_utc=1700000000,
+        permalink='/r/LizardByte/comments/abc123/test/',
+        selftext='Post body',
+        title='Post title',
+    )
+    submission_data = {
+        'flair': {
+            'template_id': 'be393440-ff87-11ec-9bbd-e2c872b60c34',
+            'text': 'Support',
+            'background_color': '#ea0027',
+            'color': 0xea0027,
+        },
+        'link_flair_background_color': '#ea0027',
+    }
+
+    with patch.dict(os.environ, {'DISCORD_REDDIT_CHANNEL_ID': '12345'}):
+        result = bot.discord(submission=submission, submission_data=submission_data)
+
+    send_message.assert_called_once()
+    embed = send_message.call_args.kwargs['embed']
+    assert send_message.call_args.kwargs['channel_id'] == '12345'
+    assert embed.color.value == 0xea0027
+    assert embed.footer.text == 'Posted on r/LizardByte - Support'
+    assert result['bot_discord']['sent'] is True
+    assert 'sent_utc' in result['bot_discord']
+
+
+def test_karma_placeholder_handler_logs_unimplemented(caplog):
     bot = bare_bot()
     submission = SimpleNamespace(id='abc123')
     submission_data = {}
 
     with caplog.at_level(logging.DEBUG, logger='src.reddit_bot.bot'):
-        result = getattr(bot, method_name)(submission=submission, submission_data=submission_data)
+        result = bot.karma(submission=submission, submission_data=submission_data)
 
     assert result is submission_data
     assert "not implemented" in caplog.text
