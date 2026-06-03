@@ -327,7 +327,6 @@ def test_process_submission_inserts_new_record(mocker):
     bot.db = FakeRedditDatabase(submissions_table=table)
     bot.award_reddit_xp = mocker.Mock(return_value={'level_up': True, 'level': 2})
     bot.discord = mocker.Mock(side_effect=lambda submission, submission_data: submission_data)
-    bot.karma = mocker.Mock(side_effect=lambda submission, submission_data: submission_data)
 
     with patch.dict(os.environ, {'DISCORD_REDDIT_CHANNEL_ID': '12345'}):
         bot.process_submission(submission=submission())
@@ -339,7 +338,6 @@ def test_process_submission_inserts_new_record(mocker):
     assert table.inserted['bot_discord'] == {'sent': False, 'sent_utc': None}
     bot.award_reddit_xp.assert_called_once()
     bot.discord.assert_called_once()
-    bot.karma.assert_called_once()
 
 
 def test_process_submission_inserts_new_record_when_award_xp_fails(mocker, caplog):
@@ -348,7 +346,6 @@ def test_process_submission_inserts_new_record_when_award_xp_fails(mocker, caplo
     bot.db = FakeRedditDatabase(submissions_table=table)
     bot.award_reddit_xp = mocker.Mock(side_effect=RuntimeError("XP failed"))
     bot.discord = mocker.Mock(side_effect=lambda submission, submission_data: submission_data)
-    bot.karma = mocker.Mock(side_effect=lambda submission, submission_data: submission_data)
 
     with patch.dict(os.environ, {'DISCORD_REDDIT_CHANNEL_ID': ''}):
         with caplog.at_level(logging.ERROR, logger='src.reddit_bot.bot'):
@@ -361,7 +358,6 @@ def test_process_submission_inserts_new_record_when_award_xp_fails(mocker, caplo
     assert table.inserted['bot_discord'] == {'sent': False, 'sent_utc': None}
     bot.award_reddit_xp.assert_called_once()
     bot.discord.assert_not_called()
-    bot.karma.assert_called_once()
 
 
 def test_submission_data_defaults():
@@ -442,19 +438,6 @@ def test_discord_uses_normalized_flair(mocker):
     assert embed.footer.text == 'Posted on r/LizardByte - Support'
     assert result['bot_discord']['sent'] is True
     assert 'sent_utc' in result['bot_discord']
-
-
-def test_karma_placeholder_handler_logs_unimplemented(caplog):
-    bot = bare_bot()
-    submission = SimpleNamespace(id='abc123')
-    submission_data = {}
-
-    with caplog.at_level(logging.DEBUG, logger='src.reddit_bot.bot'):
-        result = bot.karma(submission=submission, submission_data=submission_data)
-
-    assert result is submission_data
-    assert "not implemented" in caplog.text
-    assert "submission=namespace(id='abc123')" in caplog.text
 
 
 def test_stream_loop_stops_after_processing_item():

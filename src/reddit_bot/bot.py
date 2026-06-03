@@ -200,7 +200,6 @@ class Bot:
         submission_data = self.flair(submission=submission, submission_data=submission_data)
         if os.getenv('DISCORD_REDDIT_CHANNEL_ID'):
             submission_data = self.discord(submission=submission, submission_data=submission_data)
-        submission_data = self.karma(submission=submission, submission_data=submission_data)
 
         with self.db as db:
             submissions_table = db.table('submissions')
@@ -374,11 +373,6 @@ class Bot:
             'color': self.parse_flair_color(flair_background_color),
         }
 
-        return submission_data
-
-    def karma(self, submission: models.Submission, submission_data: dict) -> dict:
-        # TODO: implement post-karma handling for submission ranking or moderation.
-        logger.debug("Reddit karma handling is not implemented for submission=%r", submission)
         return submission_data
 
     def slash_commands(self, comment: models.Comment, comment_data: dict) -> dict:
