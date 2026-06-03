@@ -628,10 +628,10 @@ class RankSystem:
                             total_submissions += 1
                         elif skipped:
                             skipped_submissions += 1
-                    except Exception as e:
+                    except Exception:
                         author_name = submission.get('author', 'unknown')
-                        logger.error(
-                            f"Unexpected error processing submission by '{author_name}': {type(e).__name__}: {e}")
+                        logger.exception(
+                            f"Unexpected error processing submission by '{author_name}'")
                         skipped_submissions += 1
 
                 # Process comments
@@ -647,16 +647,17 @@ class RankSystem:
                             total_comments += 1
                         elif skipped:
                             skipped_comments += 1
-                    except Exception as e:
+                    except Exception:
                         author_name = comment.get('author', 'unknown')
-                        logger.error(f"Unexpected error processing comment by '{author_name}': {type(e).__name__}: {e}")
+                        logger.exception(
+                            f"Unexpected error processing comment by '{author_name}'")
                         skipped_comments += 1
 
             # Update the rank database
             new_users, updated_users = self._update_reddit_rank_database(community_id, user_xp_map)
 
-        except Exception as e:
-            logger.error(f"Error during Reddit migration: {type(e).__name__}: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error during Reddit migration")
             database.GIT_ENABLED = original_git_enabled
             raise
 
@@ -749,11 +750,11 @@ class RankSystem:
                 logger.info(f"Processing {player_count} players from page {page}")
                 return data['players']
 
-        except aiohttp.ClientError as e:
-            logger.error(f"HTTP error during migration: {e}", exc_info=True)
+        except aiohttp.ClientError:
+            logger.exception("HTTP error during migration")
             return None
-        except Exception as e:
-            logger.error(f"Unexpected error during migration: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Unexpected error during migration")
             import traceback
             traceback.print_exc()
             return None

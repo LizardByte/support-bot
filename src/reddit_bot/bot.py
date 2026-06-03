@@ -146,8 +146,8 @@ class Bot:
                 xp_result = self.award_reddit_xp(comment.author)
                 if xp_result and xp_result.get('level_up'):
                     logger.info(f"User {comment.author.name} leveled up to {xp_result.get('level')}!")
-        except Exception as e:
-            logger.error(f"Error awarding XP: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error awarding XP")
 
         comment_data = self.slash_commands(comment=comment, comment_data=comment_data)
         comment_data['processed'] = True
@@ -217,8 +217,8 @@ class Bot:
                 xp_result = self.award_reddit_xp(submission.author)
                 if xp_result and xp_result.get('level_up'):
                     logger.info(f"User {submission.author.name} leveled up to {xp_result.get('level')}!")
-        except Exception as e:
-            logger.error(f"Error awarding XP: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error awarding XP")
 
         if os.getenv('DISCORD_REDDIT_CHANNEL_ID'):
             submission_data = self.discord(submission=submission, submission_data=submission_data)
@@ -288,8 +288,8 @@ class Bot:
 
             logger.info(f"Reddit ranks migration completed: {stats}")
 
-        except Exception as e:
-            logger.error(f"Error during Reddit ranks migration: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error during Reddit ranks migration")
             self.DEGRADED = True
             reason = inspector.current_name()
             self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
@@ -407,8 +407,8 @@ class Bot:
                         break
                     if test:
                         return comment
-            except prawcore.exceptions.ServerError as e:
-                logger.error(f"Server Error: {e}", exc_info=True)
+            except prawcore.exceptions.ServerError:
+                logger.exception("Server Error")
                 self.DEGRADED = True
                 self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
                 time.sleep(60)
@@ -430,8 +430,8 @@ class Bot:
                         break
                     if test:
                         return submission
-            except prawcore.exceptions.ServerError as e:
-                logger.error(f"Server Error: {e}", exc_info=True)
+            except prawcore.exceptions.ServerError:
+                logger.exception("Server Error")
                 self.DEGRADED = True
                 self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
                 time.sleep(60)

@@ -119,8 +119,8 @@ class Bot(discord.Bot):
 
         try:
             return await channel.send(content=message, embed=embed)
-        except Exception as e:
-            logger.error(f"Error sending message: {e}", exc_info=True)
+        except Exception:
+            logger.exception("Error sending message")
             self.DEGRADED = True
 
     def send_message(

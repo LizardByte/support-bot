@@ -75,13 +75,11 @@ class AutoBanCog(discord.Cog):
                 guild.name,
                 guild.id,
             )
-        except discord.HTTPException as e:
-            logger.error(
-                "HTTP error while banning user %s (%s): %s",
+        except discord.HTTPException:
+            logger.exception(
+                "HTTP error while banning user %s (%s)",
                 message.author,
                 message.author.id,
-                e,
-                exc_info=True,
             )
 
 
