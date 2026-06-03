@@ -5,7 +5,9 @@
 from base64 import b64encode
 import inspect
 import json
+import logging
 import os
+from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import quote_plus
 
@@ -234,6 +236,20 @@ def test_stream_loop_stops_before_streaming():
 
     assert result is None
     assert processed == []
+
+
+@pytest.mark.parametrize("method_name", ["flair", "karma"])
+def test_submission_placeholder_handlers_log_unimplemented(caplog, method_name):
+    bot = bare_bot()
+    submission = SimpleNamespace(id='abc123')
+    submission_data = {}
+
+    with caplog.at_level(logging.DEBUG, logger='src.reddit_bot.bot'):
+        result = getattr(bot, method_name)(submission=submission, submission_data=submission_data)
+
+    assert result is submission_data
+    assert "not implemented" in caplog.text
+    assert "submission=namespace(id='abc123')" in caplog.text
 
 
 def test_stream_loop_stops_after_processing_item():
