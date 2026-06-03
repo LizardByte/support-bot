@@ -366,7 +366,7 @@ def webhook(source: str, key: str) -> Tuple[Response, int]:
 def run():
     cert_file, key_file = crypto.initialize_certificate()
 
-    app.run(
+    app.run(  # NOSONAR(S8392) required binding to all interfaces for running in Docker
         host="0.0.0.0",
         port=8080,
         ssl_context=(cert_file, key_file)

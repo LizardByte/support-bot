@@ -650,6 +650,7 @@ class TestDatabase:
                 db.sync()
 
         # Verify push was called with correctly formatted URL
+        # NOSONAR(S2068) okay in tests
         expected_url = "https://myuser:mytoken123@github.com/LizardByte/support-bot-data"
         db.repo.git.push.assert_called_once_with(expected_url, "master")
 
