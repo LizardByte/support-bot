@@ -235,22 +235,57 @@ class RankCog(discord.Cog):
 
     async def build_leaderboard_embed(self, platform, leaderboard_data, page, total_pages, total_users, ctx):
         """Build the leaderboard embed with improved aesthetics."""
-        platform_color = discord.Color.blurple() if platform == "discord" else discord.Color.orange()
+        embed = self._create_leaderboard_embed(platform=platform, ctx=ctx)
+        offset = (page - 1) * 10
 
+        leaderboard_text = ""
+        for i, entry in enumerate(leaderboard_data, start=1):
+            rank_num = offset + i
+            leaderboard_text += await self._format_leaderboard_entry(
+                platform=platform,
+                entry=entry,
+                rank_num=rank_num,
+            )
+
+            # Add decorative separator between entries
+            if i < len(leaderboard_data):
+                leaderboard_text += "┄┄┄┄┄┄┄┄┄┄┄┄\n"
+
+        embed.description = leaderboard_text
+        embed.set_footer(text=f"Page {page}/{total_pages} • {total_users:,} total ranked users")
+
+        return embed
+
+    def _create_leaderboard_embed(self, platform, ctx):
+        platform_color = discord.Color.blurple() if platform == "discord" else discord.Color.orange()
         embed = discord.Embed(
             title=f"🏆 {platform.capitalize()} XP Leaderboard",
             description="",
             timestamp=discord.utils.utcnow(),
             color=platform_color
         )
+        self._set_leaderboard_thumbnail(embed=embed, platform=platform, ctx=ctx)
+        return embed
 
-        # Add server icon if available
+    @staticmethod
+    def _set_leaderboard_thumbnail(embed, platform, ctx):
         if platform == "discord" and ctx.guild.icon:
             embed.set_thumbnail(url=ctx.guild.icon.url)
         elif platform == "reddit" and globals.REDDIT_BOT.subreddit.community_icon:
             embed.set_thumbnail(url=globals.REDDIT_BOT.subreddit.community_icon)
 
-        # Emojis for top ranks
+    async def _format_leaderboard_entry(self, platform, entry, rank_num):
+        username = await self._leaderboard_username(platform=platform, entry=entry)
+        level, progress, progress_bar = self._leaderboard_progress(entry=entry)
+
+        return (
+            f"{self._leaderboard_rank_display(rank_num=rank_num)} {username}\n"
+            f"Lvl {level} | XP: {entry['xp']:,} | Messages: {entry.get('message_count', 0):,}\n"
+            f"{progress_bar} {int(progress*100)}%\n"
+        )
+
+    @staticmethod
+    def _leaderboard_rank_display(rank_num):
         medal_emojis = [
             "🥇",
             "🥈",
@@ -263,60 +298,45 @@ class RankCog(discord.Cog):
             ":nine:",
             ":keycap_ten:",
         ]
-        top_positions = len(medal_emojis)
 
-        # Build leaderboard content
-        leaderboard_text = ""
-        offset = (page - 1) * 10
+        if rank_num <= len(medal_emojis):
+            return medal_emojis[rank_num - 1]
 
-        for i, entry in enumerate(leaderboard_data, start=1):
-            rank_num = offset + i
+        return f"`#{rank_num}`"
 
-            # Get appropriate medal or number
-            if rank_num <= top_positions:
-                rank_display = medal_emojis[rank_num-1]
-            else:
-                rank_display = f"`#{rank_num}`"
+    async def _leaderboard_username(self, platform, entry):
+        fallback = entry.get('username', f"User {entry['user_id']}")
+        try:
+            if platform == "discord":
+                user = await self.bot.fetch_user(entry['user_id'])
+                return f"**{user.display_name}**" if user else fallback
 
-            try:
-                if platform == "discord":
-                    user = await self.bot.fetch_user(entry['user_id'])
-                    username = user.display_name if user else f"User {entry['user_id']}"
-                    if user:
-                        username = f"**{username}**"
-                else:
-                    username = f"**u/{entry.get('username', f'User {entry['user_id']}')}**"
-            except Exception:
-                username = f"**{entry.get('username', f'User {entry['user_id']}')}**"
+            return f"**u/{fallback}**"
+        except Exception:
+            return f"**{fallback}**"
 
-            level = self.rank_system.calculate_level(xp=entry['xp'])
+    def _leaderboard_progress(self, entry):
+        level = self.rank_system.calculate_level(xp=entry['xp'])
+        current_level_xp = self.rank_system.calculate_xp_for_level(level)
+        next_level_xp = self.rank_system.calculate_xp_for_level(level + 1)
+        progress = self._leaderboard_progress_percent(
+            xp=entry['xp'],
+            current_level_xp=current_level_xp,
+            next_level_xp=next_level_xp,
+        )
+        return level, progress, self._progress_bar(progress=progress)
 
-            # Progress bar for current level
-            current_level_xp = self.rank_system.calculate_xp_for_level(level)
-            next_level_xp = self.rank_system.calculate_xp_for_level(level + 1)
-            progress = (entry['xp'] - current_level_xp) / (next_level_xp - current_level_xp) \
-                if next_level_xp > current_level_xp else 0
+    @staticmethod
+    def _leaderboard_progress_percent(xp, current_level_xp, next_level_xp):
+        if next_level_xp <= current_level_xp:
+            return 0
 
-            progress_bar_length = 10
-            filled_bars = round(progress_bar_length * progress)
-            progress_bar = f"{'▰' * filled_bars}{'▱' * (progress_bar_length - filled_bars)}"
+        return (xp - current_level_xp) / (next_level_xp - current_level_xp)
 
-            leaderboard_text += (
-                f"{rank_display} {username}\n"
-                f"Lvl {level} | XP: {entry['xp']:,} | Messages: {entry.get('message_count', 0):,}\n"
-                f"{progress_bar} {int(progress*100)}%\n"
-            )
-
-            # Add decorative separator between entries
-            if i < len(leaderboard_data):
-                leaderboard_text += "┄┄┄┄┄┄┄┄┄┄┄┄\n"
-
-            embed.description = leaderboard_text
-
-            # Add footer
-            embed.set_footer(text=f"Page {page}/{total_pages} • {total_users:,} total ranked users")
-
-        return embed
+    @staticmethod
+    def _progress_bar(progress, progress_bar_length=10):
+        filled_bars = round(progress_bar_length * progress)
+        return f"{'▰' * filled_bars}{'▱' * (progress_bar_length - filled_bars)}"
 
     def create_leaderboard_buttons(self, page, total_pages, platform):
         """Create navigation buttons for the leaderboard."""

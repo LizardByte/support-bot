@@ -183,67 +183,71 @@ class DocsCommandView(discord.ui.View):
         """
         self.interaction = interaction
 
-        select_index = None
-        index = 0
-        for child in self.children:
-            if child == select:
-                select_index = index  # this is the current child... user interacted with this child
-
-            # disable dependent drop downs
-            if select_index is not None:
-                if index - select_index - 1 <= 0:  # add 1 to select index to always allow subtracting
-                    child.disabled = False
-                else:
-                    child.disabled = True
-                    child.options = [discord.SelectOption(label='error')]
-
-                if index - select_index == 1:  # this is the next child
-                    child.options = [discord.SelectOption(label='0')]
-
-                    if child == self.children[1]:  # choose docs version
-                        selected_value = self.children[0].values[0]
-
-                        # Get the original project identifier from the mapping
-                        readthedocs = self.project_value_map.get(selected_value, selected_value)
-
-                        versions = get_json(
-                            url=f'https://app.lizardbyte.dev/dashboard/readthedocs/versions/{readthedocs}.json')
-
-                        options = []
-                        for version in versions:
-                            if version['active'] and version['built']:
-                                options.append(discord.SelectOption(
-                                    label=version['slug'],
-                                    value=version['urls']['documentation'],
-                                    description=f"Docs for {version['slug']} {version['type']}"
-                                ))
-
-                        child.options = options[:25]  # limit to 25 options
-
-            index += 1
-
-        # set the currently selected value to the default item
-        for option in select.options:
-            if option.value == select.values[0]:
-                option.default = True
-            else:
-                option.default = False
-
-        # reset values
-        try:
-            self.docs_project = self.children[0].values[0]
-            if self.children[1].values:
-                self.docs_version = self.children[1].values[0]
-            else:
-                self.docs_version = None
-        except IndexError:
-            pass
-        if select == self.children[0]:  # chose the docs project
-            self.docs_version = None
+        self._update_select_children(select=select)
+        self._mark_selected_option(select=select)
+        self._sync_docs_selection(select=select)
 
         _, embed = self.check_completion_status()
 
         await interaction.response.edit_message(embed=embed, view=self)
+
+    def _update_select_children(self, select: Select):
+        select_index = self.children.index(select)
+
+        for index, child in enumerate(self.children):
+            if index <= select_index:
+                child.disabled = False
+            elif index == select_index + 1:
+                self._prepare_next_select(child=child)
+            else:
+                self._disable_select(child=child)
+
+    def _prepare_next_select(self, child):
+        child.disabled = False
+        child.options = [discord.SelectOption(label='0')]
+
+        if child == self.children[1]:
+            child.options = self._docs_version_options()
+
+    @staticmethod
+    def _disable_select(child):
+        child.disabled = True
+        child.options = [discord.SelectOption(label='error')]
+
+    def _docs_version_options(self):
+        selected_value = self.children[0].values[0]
+
+        # Get the original project identifier from the mapping
+        readthedocs = self.project_value_map.get(selected_value, selected_value)
+        versions = get_json(url=f'https://app.lizardbyte.dev/dashboard/readthedocs/versions/{readthedocs}.json')
+
+        return [
+            discord.SelectOption(
+                label=version['slug'],
+                value=version['urls']['documentation'],
+                description=f"Docs for {version['slug']} {version['type']}"
+            )
+            for version in versions
+            if version['active'] and version['built']
+        ][:25]
+
+    @staticmethod
+    def _mark_selected_option(select: Select):
+        for option in select.options:
+            option.default = option.value == select.values[0]
+
+    def _sync_docs_selection(self, select: Select):
+        self.docs_project = self._selected_child_value(index=0)
+        self.docs_version = self._selected_child_value(index=1)
+
+        if select == self.children[0]:  # chose the docs project
+            self.docs_version = None
+
+    def _selected_child_value(self, index: int):
+        if index >= len(self.children) or not self.children[index].values:
+            return None
+
+        return self.children[index].values[0]
 
     @discord.ui.select(
         placeholder="Choose docs...",
