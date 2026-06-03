@@ -50,28 +50,48 @@ class BaseCommandsCog(discord.Cog):
             cmd: discord.command,
             group_name=None,
     ) -> str:
-        description = ""
         permissions = cmd.default_member_permissions
-        has_permissions = True
-        if permissions:
-            permissions_dict = {perm[0]: perm[1] for perm in permissions}
-            has_permissions = all(getattr(ctx.author.guild_permissions, perm, False) for perm in permissions_dict)
-        if has_permissions:
-            doc_help = cmd.description
-            if not doc_help:
-                doc_lines = cmd.callback.__doc__.split('\n')
-                doc_help = '\n'.join(line.strip() for line in doc_lines).split('\nParameters\n----------')[0].strip()
-            if group_name:
-                description = f"### `/{group_name} {cmd.name}`\n"
-            else:
-                description = f"### `/{cmd.name}`\n"
-            description += f"{doc_help}\n"
-            if cmd.options:
-                description += "\n**Options:**\n"
-                for option in cmd.options:
-                    description += (f"`{option.name}`: {option.description} "
-                                    f"({'Required' if option.required else 'Optional'})\n")
-            description += "\n"
+        if not BaseCommandsCog.has_command_permissions(ctx=ctx, permissions=permissions):
+            return ""
+
+        description = BaseCommandsCog.command_help_title(cmd=cmd, group_name=group_name)
+        description += f"{BaseCommandsCog.command_help_text(cmd=cmd)}\n"
+        description += BaseCommandsCog.command_options_help(options=cmd.options)
+        return f"{description}\n"
+
+    @staticmethod
+    def has_command_permissions(ctx: discord.ApplicationContext, permissions) -> bool:
+        if not permissions:
+            return True
+
+        permissions_dict = {perm[0]: perm[1] for perm in permissions}
+        return all(getattr(ctx.author.guild_permissions, perm, False) for perm in permissions_dict)
+
+    @staticmethod
+    def command_help_title(cmd: discord.command, group_name=None) -> str:
+        if group_name:
+            return f"### `/{group_name} {cmd.name}`\n"
+
+        return f"### `/{cmd.name}`\n"
+
+    @staticmethod
+    def command_help_text(cmd: discord.command) -> str:
+        if cmd.description:
+            return cmd.description
+
+        doc_lines = cmd.callback.__doc__.split('\n')
+        return '\n'.join(line.strip() for line in doc_lines).split('\nParameters\n----------')[0].strip()
+
+    @staticmethod
+    def command_options_help(options: list) -> str:
+        if not options:
+            return ""
+
+        description = "\n**Options:**\n"
+        for option in options:
+            description += (f"`{option.name}`: {option.description} "
+                            f"({'Required' if option.required else 'Optional'})\n")
+
         return description
 
     @discord.slash_command(

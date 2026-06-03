@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 import shelve
+import shutil
 import threading
 from typing import Union
 
@@ -27,6 +28,7 @@ class Database:
     def __init__(self, db_name: str, db_dir: Union[str, Path] = data_dir, use_git: bool = True):
         self.db_name = db_name
         self.db_dir = db_dir
+        self.repo = None
 
         # Check for CI environment
         is_ci = os.environ.get('GITHUB_PYTEST', '').lower() == 'true'
@@ -36,115 +38,7 @@ class Database:
         self.repo_url = None
         self.repo_branch = None
         if self.use_git:
-            self.repo_url = os.getenv("DATA_REPO", "https://github.com/LizardByte/support-bot-data")
-            self.repo_branch = os.getenv("DATA_REPO_BRANCH", "master")
-            self.db_dir = os.path.join(self.db_dir, "support-bot-data")
-
-            # Get Git user configuration from environment variables
-            self.git_user_name = os.environ["GIT_USER_NAME"]
-            self.git_user_email = os.environ["GIT_USER_EMAIL"]
-
-            # Git credentials for authentication (required for private repo)
-            self.git_token = os.getenv("GIT_TOKEN") or os.getenv("GITHUB_TOKEN")
-            if not self.git_token:
-                raise ValueError("GIT_TOKEN or GITHUB_TOKEN must be provided for private repository access")
-
-            # Prepare URL with credentials for private repo access
-            protocol, repo_path = self.repo_url.split("://", 1)
-            clone_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
-
-            if not os.path.exists(self.db_dir):
-                # Clone repo if it doesn't exist
-                logger.info(f"Cloning repository {self.repo_url} to {self.db_dir}")
-                try:
-                    # Try cloning with the specified branch
-                    self.repo = git.Repo.clone_from(clone_url, self.db_dir, branch=self.repo_branch)
-                    # Configure the repo
-                    self._configure_repo()
-                except git.exc.GitCommandError as e:
-                    # Check if the error is due to branch not found
-                    if "Remote branch" in str(e) and "not found in upstream origin" in str(e):
-                        logger.info(f"Branch '{self.repo_branch}' not found in remote. Creating a new empty branch.")
-                        # Clone with default branch first
-                        self.repo = git.Repo.clone_from(clone_url, self.db_dir)
-                        # Configure the repo
-                        self._configure_repo()
-
-                        # Create a new orphan branch (not based on any other branch)
-                        self.repo.git.checkout('--orphan', self.repo_branch)
-
-                        # Clear the index and working tree
-                        try:
-                            self.repo.git.rm('-rf', '.', '--cached')
-                        except git.exc.GitCommandError:
-                            # This might fail if there are no files yet, which is fine
-                            pass
-
-                        # Remove all files in the directory except .git
-                        for item in os.listdir(self.db_dir):
-                            if item != '.git':
-                                item_path = os.path.join(self.db_dir, item)
-                                if os.path.isdir(item_path):
-                                    import shutil
-                                    shutil.rmtree(item_path)
-                                else:
-                                    os.remove(item_path)
-
-                        # Create empty .gitkeep file to ensure the branch can be committed
-                        gitkeep_path = os.path.join(self.db_dir, '.gitkeep')
-                        with open(gitkeep_path, 'w'):
-                            pass
-
-                        # Add and commit the .gitkeep file
-                        self.repo.git.add(gitkeep_path)
-                        self.repo.git.commit('-m', f"Initialize empty branch '{self.repo_branch}'")
-
-                        # Push the new branch to remote
-                        try:
-                            self.repo.git.push('--set-upstream', 'origin', self.repo_branch)
-                            logger.info(f"Created and pushed new empty branch '{self.repo_branch}'")
-                        except git.exc.GitCommandError:
-                            logger.exception("Failed to push new branch")
-                            # Continue anyway - we might not have push permissions
-                    else:
-                        # Re-raise if it's a different error
-                        raise
-            else:
-                # Use existing repo
-                self.repo = git.Repo(self.db_dir)
-                # Configure the repo
-                self._configure_repo()
-
-                # Make sure the correct branch is checked out
-                if self.repo_branch not in [ref.name.split('/')[-1] for ref in self.repo.refs]:
-                    # Branch doesn't exist locally, check if it exists remotely
-                    try:
-                        self.repo.git.fetch('origin')
-                        remote_branches = [ref.name.split('/')[-1] for ref in self.repo.remote().refs]
-
-                        if self.repo_branch in remote_branches:
-                            # Checkout existing remote branch
-                            self.repo.git.checkout(self.repo_branch)
-                        else:
-                            # Create new orphan branch
-                            self.repo.git.checkout('--orphan', self.repo_branch)
-                            self.repo.git.rm('-rf', '.', '--cached')
-
-                            # Create empty .gitkeep file
-                            gitkeep_path = os.path.join(self.db_dir, '.gitkeep')
-                            with open(gitkeep_path, 'w'):
-                                pass
-
-                            self.repo.git.add(gitkeep_path)
-                            self.repo.git.commit('-m', f"Initialize empty branch '{self.repo_branch}'")
-                            self.repo.git.push('--set-upstream', 'origin', self.repo_branch)
-                            logger.info(f"Created and pushed new empty branch '{self.repo_branch}'")
-                    except git.exc.GitCommandError:
-                        logger.warning(
-                            f"Failed to work with branch '{self.repo_branch}'. Using current branch instead.")
-                else:
-                    # Branch exists locally, make sure it's checked out
-                    self.repo.git.checkout(self.repo_branch)
+            self._setup_git_repository()
 
         self.json_path = os.path.join(self.db_dir, f"{self.db_name}.json")
         self.shelve_path = os.path.join(db_dir, self.db_name)  # Shelve adds its own extensions
@@ -159,6 +53,123 @@ class Database:
             storage=CachingMiddleware(JSONStorage),
             indent=4,
         )
+
+    def _setup_git_repository(self):
+        """Initialize or open the backing git repository used for database persistence."""
+        self.repo_url = os.getenv("DATA_REPO", "https://github.com/LizardByte/support-bot-data")
+        self.repo_branch = os.getenv("DATA_REPO_BRANCH", "master")
+        self.db_dir = os.path.join(self.db_dir, "support-bot-data")
+
+        # Get Git user configuration from environment variables
+        self.git_user_name = os.environ["GIT_USER_NAME"]
+        self.git_user_email = os.environ["GIT_USER_EMAIL"]
+
+        # Git credentials for authentication (required for private repo)
+        self.git_token = os.getenv("GIT_TOKEN") or os.getenv("GITHUB_TOKEN")
+        if not self.git_token:
+            raise ValueError("GIT_TOKEN or GITHUB_TOKEN must be provided for private repository access")
+
+        clone_url = self._authenticated_repo_url()
+        if os.path.exists(self.db_dir):
+            self._open_existing_repo()
+        else:
+            self._clone_repo(clone_url=clone_url)
+
+    def _authenticated_repo_url(self) -> str:
+        """Build a repository URL with credentials for private repo access."""
+        protocol, repo_path = self.repo_url.split("://", 1)
+        return f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
+
+    def _clone_repo(self, clone_url: str):
+        logger.info(f"Cloning repository {self.repo_url} to {self.db_dir}")
+        try:
+            self.repo = git.Repo.clone_from(clone_url, self.db_dir, branch=self.repo_branch)
+            self._configure_repo()
+        except git.exc.GitCommandError as e:
+            if not self._is_missing_remote_branch(error=e):
+                raise
+
+            logger.info(f"Branch '{self.repo_branch}' not found in remote. Creating a new empty branch.")
+            self.repo = git.Repo.clone_from(clone_url, self.db_dir)
+            self._configure_repo()
+            self._initialize_orphan_branch(clean_worktree=True)
+            self._push_new_branch(log_errors=True)
+
+    def _open_existing_repo(self):
+        self.repo = git.Repo(self.db_dir)
+        self._configure_repo()
+
+        if self._has_local_branch():
+            self.repo.git.checkout(self.repo_branch)
+            return
+
+        self._checkout_or_create_branch()
+
+    def _checkout_or_create_branch(self):
+        try:
+            self.repo.git.fetch('origin')
+            if self._has_remote_branch():
+                self.repo.git.checkout(self.repo_branch)
+                return
+
+            self._initialize_orphan_branch(clean_worktree=False)
+            self._push_new_branch(log_errors=False)
+        except git.exc.GitCommandError:
+            logger.warning(f"Failed to work with branch '{self.repo_branch}'. Using current branch instead.")
+
+    @staticmethod
+    def _is_missing_remote_branch(error: git.exc.GitCommandError) -> bool:
+        error_message = str(error)
+        return "Remote branch" in error_message and "not found in upstream origin" in error_message
+
+    def _has_local_branch(self) -> bool:
+        local_branches = [ref.name.split('/')[-1] for ref in self.repo.refs]
+        return self.repo_branch in local_branches
+
+    def _has_remote_branch(self) -> bool:
+        remote_branches = [ref.name.split('/')[-1] for ref in self.repo.remote().refs]
+        return self.repo_branch in remote_branches
+
+    def _initialize_orphan_branch(self, clean_worktree: bool):
+        self.repo.git.checkout('--orphan', self.repo_branch)
+        self._clear_repo_index()
+
+        if clean_worktree:
+            self._clear_data_repo_worktree()
+
+        self._commit_gitkeep()
+
+    def _clear_repo_index(self):
+        try:
+            self.repo.git.rm('-rf', '.', '--cached')
+        except git.exc.GitCommandError:
+            logger.debug("No tracked files to remove from the new branch index")
+
+    def _clear_data_repo_worktree(self):
+        for item in Path(self.db_dir).iterdir():
+            if item.name == '.git':
+                continue
+
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()
+
+    def _commit_gitkeep(self):
+        gitkeep_path = os.path.join(self.db_dir, '.gitkeep')
+        Path(gitkeep_path).touch()
+        self.repo.git.add(gitkeep_path)
+        self.repo.git.commit('-m', f"Initialize empty branch '{self.repo_branch}'")
+
+    def _push_new_branch(self, log_errors: bool):
+        try:
+            self.repo.git.push('--set-upstream', 'origin', self.repo_branch)
+            logger.info(f"Created and pushed new empty branch '{self.repo_branch}'")
+        except git.exc.GitCommandError:
+            if log_errors:
+                logger.exception("Failed to push new branch")
+            else:
+                raise
 
     def _configure_repo(self):
         """Configure the Git repository with user identity from environment variables."""
@@ -201,69 +212,18 @@ class Database:
     def _migrate_from_shelve(self):
         try:
             # Create a temporary database just for migration
-            migration_db = TinyDB(
-                self.json_path,
-                storage=CachingMiddleware(JSONStorage),
-                indent=4,
-            )
+            migration_db = self._open_tinydb()
 
             # Determine if this is the Reddit database
             is_reddit_db = "reddit_bot" in self.db_name
 
             # Open the shelve database
             with shelve.open(self.shelve_path) as shelve_db:
-                # Process each key in the shelve database
-                for key in shelve_db.keys():
-                    value = shelve_db[key]
-
-                    # If value is a dict and looks like a collection of records
-                    if isinstance(value, dict) and all(isinstance(k, str) for k in value.keys()):
-                        table = migration_db.table(key)
-
-                        # Insert each record into TinyDB with proper fields
-                        for record_id, record_data in value.items():
-                            if isinstance(record_data, dict):
-                                if is_reddit_db:
-                                    # Check if it's a comment or submission
-                                    is_comment = 'body' in record_data
-
-                                    if is_comment:
-                                        # For comments
-                                        simplified_record = {
-                                            'reddit_id': record_data.get('id', record_id),
-                                            'author': record_data.get('author'),
-                                            'body': record_data.get('body'),
-                                            'created_utc': record_data.get('created_utc', 0),
-                                            'processed': record_data.get('processed', False),
-                                            'slash_command': record_data.get('slash_command', {
-                                                'project': None,
-                                                'command': None,
-                                            }),
-                                        }
-                                    else:
-                                        # For submissions
-                                        simplified_record = {
-                                            'reddit_id': record_data.get('id', record_id),
-                                            'title': record_data.get('title'),
-                                            'selftext': record_data.get('selftext'),
-                                            'author': str(record_data.get('author')),
-                                            'created_utc': record_data.get('created_utc', 0),
-                                            'permalink': record_data.get('permalink'),
-                                            'url': record_data.get('url'),
-                                            'link_flair_text': record_data.get('link_flair_text'),
-                                            'link_flair_background_color': record_data.get(
-                                                'link_flair_background_color'),
-                                            'bot_discord': record_data.get('bot_discord', {
-                                                'sent': False,
-                                                'sent_utc': None,
-                                            }),
-                                        }
-
-                                    table.insert(simplified_record)
-                                else:
-                                    # Non-Reddit databases keep original structure
-                                    record_data['id'] = record_id
-                                    table.insert(record_data)
+                self._migrate_shelve_tables(
+                    migration_db=migration_db,
+                    shelve_db=shelve_db,
+                    is_reddit_db=is_reddit_db,
+                )
 
                 # Flush changes to disk
                 migration_db.storage.flush()
@@ -272,6 +232,78 @@ class Database:
             logger.info(f"Migration completed successfully: {self.json_path}")
         except Exception:
             logger.exception("Migration failed")
+
+    def _migrate_shelve_tables(self, migration_db: TinyDB, shelve_db: shelve.Shelf, is_reddit_db: bool):
+        # Process each key in the shelve database
+        for key in shelve_db.keys():
+            value = shelve_db[key]
+
+            # If value is a dict and looks like a collection of records
+            if not self._is_record_collection(value=value):
+                continue
+
+            table = migration_db.table(key)
+            for record_id, record_data in value.items():
+                self._insert_migrated_record(
+                    table=table,
+                    record_id=record_id,
+                    record_data=record_data,
+                    is_reddit_db=is_reddit_db,
+                )
+
+    @staticmethod
+    def _is_record_collection(value) -> bool:
+        return isinstance(value, dict) and all(isinstance(k, str) for k in value.keys())
+
+    def _insert_migrated_record(self, table, record_id: str, record_data: dict, is_reddit_db: bool):
+        if not isinstance(record_data, dict):
+            return
+
+        if is_reddit_db:
+            table.insert(self._simplify_reddit_record(record_id=record_id, record_data=record_data))
+            return
+
+        # Non-Reddit databases keep original structure
+        record_data['id'] = record_id
+        table.insert(record_data)
+
+    def _simplify_reddit_record(self, record_id: str, record_data: dict) -> dict:
+        if 'body' in record_data:
+            return self._simplify_reddit_comment(record_id=record_id, record_data=record_data)
+
+        return self._simplify_reddit_submission(record_id=record_id, record_data=record_data)
+
+    @staticmethod
+    def _simplify_reddit_comment(record_id: str, record_data: dict) -> dict:
+        return {
+            'reddit_id': record_data.get('id', record_id),
+            'author': record_data.get('author'),
+            'body': record_data.get('body'),
+            'created_utc': record_data.get('created_utc', 0),
+            'processed': record_data.get('processed', False),
+            'slash_command': record_data.get('slash_command', {
+                'project': None,
+                'command': None,
+            }),
+        }
+
+    @staticmethod
+    def _simplify_reddit_submission(record_id: str, record_data: dict) -> dict:
+        return {
+            'reddit_id': record_data.get('id', record_id),
+            'title': record_data.get('title'),
+            'selftext': record_data.get('selftext'),
+            'author': str(record_data.get('author')),
+            'created_utc': record_data.get('created_utc', 0),
+            'permalink': record_data.get('permalink'),
+            'url': record_data.get('url'),
+            'link_flair_text': record_data.get('link_flair_text'),
+            'link_flair_background_color': record_data.get('link_flair_background_color'),
+            'bot_discord': record_data.get('bot_discord', {
+                'sent': False,
+                'sent_utc': None,
+            }),
+        }
 
     def __enter__(self):
         self.lock.acquire()
@@ -286,60 +318,79 @@ class Database:
     def sync(self):
         try:
             # Flush changes to disk if possible
-            if self.tinydb and hasattr(self.tinydb.storage, 'flush'):
-                self.tinydb.storage.flush()
-
-            # Close the database to ensure file is available for Git operations
-            if self.tinydb is not None:
-                self.tinydb.close()
-                self.tinydb = None
+            self._close_tinydb_for_sync()
 
             # Git operations with closed file
-            with DATA_REPO_LOCK:
-                if self.use_git and self.repo is not None and GIT_ENABLED:
-                    try:
-                        # Check for untracked database files and tracked files with changes
-                        status = self.repo.git.status('--porcelain')
-
-                        # If there are any changes or untracked files
-                        if status:
-                            # Add ALL json files in the directory to ensure we track all databases
-                            json_files = [f for f in os.listdir(self.db_dir) if f.endswith('.json')]
-                            if json_files:
-                                for json_file in json_files:
-                                    file_path = os.path.join(self.db_dir, json_file)
-                                    self.repo.git.add(file_path)
-
-                            # Check if we have anything to commit after adding
-                            if self.repo.git.status('--porcelain'):
-                                # Ensure the repository is configured with user identity
-                                self._configure_repo()
-
-                                # Commit all changes at once with a general message
-                                commit_message = "Update database files"
-                                self.repo.git.commit('-m', commit_message)
-                                logger.info("Committed changes to git data repository")
-
-                                # Push to remote with credentials
-                                try:
-                                    # Ensure we're using the credentials for push
-                                    protocol, repo_path = self.repo_url.split("://", 1)
-                                    push_url = f"{protocol}://{self.git_user_name}:{self.git_token}@{repo_path}"
-                                    self.repo.git.push(push_url, self.repo_branch)
-                                    logger.info("Pushed changes to remote git data repository")
-                                except git.exc.GitCommandError:
-                                    logger.exception("Failed to push changes")
-
-                    except Exception:
-                        logger.exception("Git operation failed")
+            self._sync_git_repo()
         finally:
             # Ensure database is ready for next use
             if self.tinydb is None:
-                self.tinydb = TinyDB(
-                    self.json_path,
-                    storage=CachingMiddleware(JSONStorage),
-                    indent=4,
-                )
+                self.tinydb = self._open_tinydb()
+
+    def _close_tinydb_for_sync(self):
+        if self.tinydb and hasattr(self.tinydb.storage, 'flush'):
+            self.tinydb.storage.flush()
+
+        # Close the database to ensure file is available for Git operations
+        if self.tinydb is not None:
+            self.tinydb.close()
+            self.tinydb = None
+
+    def _sync_git_repo(self):
+        with DATA_REPO_LOCK:
+            if not self._should_sync_git():
+                return
+
+            try:
+                self._commit_and_push_changes()
+            except Exception:
+                logger.exception("Git operation failed")
+
+    def _should_sync_git(self) -> bool:
+        return self.use_git and self.repo is not None and GIT_ENABLED
+
+    def _commit_and_push_changes(self):
+        # Check for untracked database files and tracked files with changes
+        if not self.repo.git.status('--porcelain'):
+            return
+
+        # Add ALL json files in the directory to ensure we track all databases
+        json_files = self._json_files_to_sync()
+        for file_path in json_files:
+            self.repo.git.add(file_path)
+
+        if not json_files or not self.repo.git.status('--porcelain'):
+            return
+
+        # Ensure the repository is configured with user identity
+        self._configure_repo()
+
+        # Commit all changes at once with a general message
+        self.repo.git.commit('-m', "Update database files")
+        logger.info("Committed changes to git data repository")
+        self._push_database_changes()
+
+    def _json_files_to_sync(self) -> list[str]:
+        return [
+            os.path.join(self.db_dir, json_file)
+            for json_file in os.listdir(self.db_dir)
+            if json_file.endswith('.json')
+        ]
+
+    def _push_database_changes(self):
+        try:
+            push_url = self._authenticated_repo_url()
+            self.repo.git.push(push_url, self.repo_branch)
+            logger.info("Pushed changes to remote git data repository")
+        except git.exc.GitCommandError:
+            logger.exception("Failed to push changes")
+
+    def _open_tinydb(self) -> TinyDB:
+        return TinyDB(
+            self.json_path,
+            storage=CachingMiddleware(JSONStorage),
+            indent=4,
+        )
 
     @staticmethod
     def query():

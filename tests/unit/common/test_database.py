@@ -3,9 +3,11 @@ import inspect
 import os
 import shelve
 import threading
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 # lib imports
+import git
 import pytest
 from tinydb import JSONStorage, TinyDB
 from tinydb.middlewares import CachingMiddleware
@@ -691,3 +693,394 @@ class TestDatabase:
 
         # Verify _configure_repo was called
         assert len(configure_repo_called) == 1
+
+    def test_init_runs_git_setup_when_enabled(self, tmp_path, mocker):
+        git_setup = mocker.patch.object(Database, '_setup_git_repository')
+
+        with patch.dict(os.environ, {'GITHUB_PYTEST': 'false'}):
+            db = Database(
+                db_name='git_enabled',
+                db_dir=tmp_path,
+                use_git=True,
+            )
+
+        git_setup.assert_called_once()
+        db.tinydb.close()
+
+    @staticmethod
+    def bare_database(tmp_path):
+        db = Database.__new__(Database)
+        db.db_name = 'test'
+        db.db_dir = str(tmp_path)
+        db.repo = MagicMock()
+        db.repo_url = 'https://github.com/test/repo'
+        db.repo_branch = 'local-test'
+        db.git_user_name = 'user'
+        db.git_user_email = 'user@example.com'
+        db.git_token = 'token'
+        db.json_path = os.path.join(str(tmp_path), 'test.json')
+        db.shelve_path = os.path.join(str(tmp_path), 'test')
+        db.use_git = True
+        db.tinydb = None
+        return db
+
+    def test_setup_git_repository_uses_existing_repo(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        db._authenticated_repo_url = mocker.Mock(return_value='https://token-url')
+        db._open_existing_repo = mocker.Mock()
+        db._clone_repo = mocker.Mock()
+
+        with patch.dict(os.environ, {
+            'DATA_REPO_BRANCH': 'master',
+            'GIT_USER_NAME': 'env-user',
+            'GIT_USER_EMAIL': 'env-user@example.com',
+            'GIT_TOKEN': 'env-token',
+        }):
+            with patch('os.path.exists', return_value=True):
+                db._setup_git_repository()
+
+        assert db.repo_url == 'https://github.com/LizardByte/support-bot-data'
+        assert db.repo_branch == 'master'
+        assert db.git_user_name == 'env-user'
+        assert db.git_user_email == 'env-user@example.com'
+        assert db.git_token == 'env-token'
+        db._open_existing_repo.assert_called_once()
+        db._clone_repo.assert_not_called()
+
+    def test_setup_git_repository_clones_missing_repo(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        db._authenticated_repo_url = mocker.Mock(return_value='https://token-url')
+        db._open_existing_repo = mocker.Mock()
+        db._clone_repo = mocker.Mock()
+
+        with patch.dict(os.environ, {
+            'DATA_REPO': 'https://example.com/repo',
+            'DATA_REPO_BRANCH': 'branch',
+            'GIT_USER_NAME': 'env-user',
+            'GIT_USER_EMAIL': 'env-user@example.com',
+            'GITHUB_TOKEN': 'github-token',
+        }, clear=False):
+            with patch.dict(os.environ, {'GIT_TOKEN': ''}, clear=False):
+                with patch('os.path.exists', return_value=False):
+                    db._setup_git_repository()
+
+        assert db.repo_url == 'https://example.com/repo'
+        assert db.repo_branch == 'branch'
+        assert db.git_token == 'github-token'
+        db._clone_repo.assert_called_once_with(clone_url='https://token-url')
+        db._open_existing_repo.assert_not_called()
+
+    def test_setup_git_repository_requires_token(self, tmp_path):
+        db = self.bare_database(tmp_path)
+
+        with patch.dict(os.environ, {
+            'GIT_USER_NAME': 'env-user',
+            'GIT_USER_EMAIL': 'env-user@example.com',
+            'GIT_TOKEN': '',
+            'GITHUB_TOKEN': '',
+        }, clear=False):
+            with pytest.raises(ValueError, match='GIT_TOKEN or GITHUB_TOKEN'):
+                db._setup_git_repository()
+
+    def test_authenticated_repo_url(self, tmp_path):
+        db = self.bare_database(tmp_path)
+
+        authenticated_url = db._authenticated_repo_url()
+
+        assert authenticated_url.startswith('https://')
+        assert authenticated_url.endswith('@github.com/test/repo')
+        assert db.git_user_name in authenticated_url
+        assert db.git_token in authenticated_url
+
+    def test_clone_repo_success(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        repo = MagicMock()
+        clone_from = mocker.patch('src.common.database.git.Repo.clone_from', return_value=repo)
+        db._configure_repo = mocker.Mock()
+
+        db._clone_repo(clone_url='https://token-url')
+
+        clone_from.assert_called_once_with('https://token-url', db.db_dir, branch='local-test')
+        assert db.repo is repo
+        db._configure_repo.assert_called_once()
+
+    def test_clone_repo_creates_missing_branch(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        repo = MagicMock()
+        missing_branch = git.exc.GitCommandError(
+            'clone',
+            'Remote branch local-test not found in upstream origin',
+        )
+        mocker.patch('src.common.database.git.Repo.clone_from', side_effect=[missing_branch, repo])
+        db._configure_repo = mocker.Mock()
+        db._initialize_orphan_branch = mocker.Mock()
+        db._push_new_branch = mocker.Mock()
+
+        db._clone_repo(clone_url='https://token-url')
+
+        assert db.repo is repo
+        assert db._configure_repo.call_count == 1
+        db._initialize_orphan_branch.assert_called_once_with(clean_worktree=True)
+        db._push_new_branch.assert_called_once_with(log_errors=True)
+
+    def test_clone_repo_reraises_unexpected_error(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        clone_error = git.exc.GitCommandError('clone', 'different failure')
+        mocker.patch('src.common.database.git.Repo.clone_from', side_effect=clone_error)
+
+        with pytest.raises(git.exc.GitCommandError):
+            db._clone_repo(clone_url='https://token-url')
+
+    def test_open_existing_repo_checks_out_local_branch(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        repo = MagicMock()
+        mocker.patch('src.common.database.git.Repo', return_value=repo)
+        db._configure_repo = mocker.Mock()
+        db._has_local_branch = mocker.Mock(return_value=True)
+        db._checkout_or_create_branch = mocker.Mock()
+
+        db._open_existing_repo()
+
+        assert db.repo is repo
+        repo.git.checkout.assert_called_once_with('local-test')
+        db._checkout_or_create_branch.assert_not_called()
+
+    def test_open_existing_repo_creates_missing_branch(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        repo = MagicMock()
+        mocker.patch('src.common.database.git.Repo', return_value=repo)
+        db._configure_repo = mocker.Mock()
+        db._has_local_branch = mocker.Mock(return_value=False)
+        db._checkout_or_create_branch = mocker.Mock()
+
+        db._open_existing_repo()
+
+        db._checkout_or_create_branch.assert_called_once()
+
+    def test_checkout_or_create_branch_uses_remote_branch(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        db._has_remote_branch = mocker.Mock(return_value=True)
+        db._initialize_orphan_branch = mocker.Mock()
+        db._push_new_branch = mocker.Mock()
+
+        db._checkout_or_create_branch()
+
+        db.repo.git.fetch.assert_called_once_with('origin')
+        db.repo.git.checkout.assert_called_once_with('local-test')
+        db._initialize_orphan_branch.assert_not_called()
+
+    def test_checkout_or_create_branch_initializes_orphan(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        db._has_remote_branch = mocker.Mock(return_value=False)
+        db._initialize_orphan_branch = mocker.Mock()
+        db._push_new_branch = mocker.Mock()
+
+        db._checkout_or_create_branch()
+
+        db._initialize_orphan_branch.assert_called_once_with(clean_worktree=False)
+        db._push_new_branch.assert_called_once_with(log_errors=False)
+
+    def test_checkout_or_create_branch_warns_on_git_error(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        db.repo.git.fetch.side_effect = git.exc.GitCommandError('fetch', 'failed')
+
+        db._checkout_or_create_branch()
+
+    def test_branch_detection_helpers(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        db.repo.refs = [
+            SimpleNamespace(name='refs/heads/main'),
+            SimpleNamespace(name='refs/heads/local-test'),
+        ]
+        db.repo.remote.return_value.refs = [
+            SimpleNamespace(name='origin/main'),
+            SimpleNamespace(name='origin/local-test'),
+        ]
+
+        assert db._has_local_branch() is True
+        assert db._has_remote_branch() is True
+        assert Database._is_missing_remote_branch(
+            git.exc.GitCommandError('clone', 'Remote branch x not found in upstream origin')
+        ) is True
+        assert Database._is_missing_remote_branch(git.exc.GitCommandError('clone', 'different')) is False
+
+    def test_initialize_orphan_branch_cleans_worktree_when_requested(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        db._clear_repo_index = mocker.Mock()
+        db._clear_data_repo_worktree = mocker.Mock()
+        db._commit_gitkeep = mocker.Mock()
+
+        db._initialize_orphan_branch(clean_worktree=True)
+
+        db.repo.git.checkout.assert_called_once_with('--orphan', 'local-test')
+        db._clear_repo_index.assert_called_once()
+        db._clear_data_repo_worktree.assert_called_once()
+        db._commit_gitkeep.assert_called_once()
+
+    def test_initialize_orphan_branch_can_keep_worktree(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        db._clear_repo_index = mocker.Mock()
+        db._clear_data_repo_worktree = mocker.Mock()
+        db._commit_gitkeep = mocker.Mock()
+
+        db._initialize_orphan_branch(clean_worktree=False)
+
+        db._clear_data_repo_worktree.assert_not_called()
+
+    def test_clear_repo_index_handles_empty_index(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        db.repo.git.rm.side_effect = git.exc.GitCommandError('rm', 'empty')
+
+        db._clear_repo_index()
+
+    def test_clear_data_repo_worktree_removes_only_non_git_items(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        git_dir = tmp_path / '.git'
+        data_dir = tmp_path / 'nested'
+        data_file = tmp_path / 'data.json'
+        git_dir.mkdir()
+        data_dir.mkdir()
+        data_file.write_text('{}')
+
+        db._clear_data_repo_worktree()
+
+        assert git_dir.exists()
+        assert not data_dir.exists()
+        assert not data_file.exists()
+
+    def test_commit_gitkeep(self, tmp_path):
+        db = self.bare_database(tmp_path)
+
+        db._commit_gitkeep()
+
+        gitkeep_path = tmp_path / '.gitkeep'
+        assert gitkeep_path.exists()
+        db.repo.git.add.assert_called_once_with(str(gitkeep_path))
+        db.repo.git.commit.assert_called_once_with('-m', "Initialize empty branch 'local-test'")
+
+    def test_push_new_branch_success(self, tmp_path):
+        db = self.bare_database(tmp_path)
+
+        db._push_new_branch(log_errors=True)
+
+        db.repo.git.push.assert_called_once_with('--set-upstream', 'origin', 'local-test')
+
+    def test_push_new_branch_logs_or_raises_errors(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        db.repo.git.push.side_effect = git.exc.GitCommandError('push', 'failed')
+
+        db._push_new_branch(log_errors=True)
+
+        with pytest.raises(git.exc.GitCommandError):
+            db._push_new_branch(log_errors=False)
+
+    def test_migrate_shelve_tables_skips_invalid_collections(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        migration_db = MagicMock()
+        shelve_db = {
+            'metadata': 'not records',
+            'bad_keys': {1: {'value': 'bad'}},
+            'comments': {
+                'abc': {'body': 'hello'},
+                'ignored': 'not a record',
+            },
+        }
+
+        db._migrate_shelve_tables(migration_db=migration_db, shelve_db=shelve_db, is_reddit_db=True)
+
+        migration_db.table.assert_called_once_with('comments')
+        table = migration_db.table.return_value
+        assert table.insert.call_count == 1
+
+    def test_insert_migrated_record_handles_non_reddit_and_non_dict(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        table = MagicMock()
+
+        db._insert_migrated_record(table=table, record_id='ignored', record_data='not dict', is_reddit_db=False)
+        db._insert_migrated_record(table=table, record_id='abc', record_data={'value': 1}, is_reddit_db=False)
+
+        table.insert.assert_called_once_with({'value': 1, 'id': 'abc'})
+
+    def test_simplify_reddit_records(self, tmp_path):
+        db = self.bare_database(tmp_path)
+
+        comment = db._simplify_reddit_record(record_id='comment-id', record_data={'body': 'hello'})
+        submission = db._simplify_reddit_record(record_id='submission-id', record_data={'title': 'Title'})
+
+        assert comment == {
+            'reddit_id': 'comment-id',
+            'author': None,
+            'body': 'hello',
+            'created_utc': 0,
+            'processed': False,
+            'slash_command': {'project': None, 'command': None},
+        }
+        assert submission['reddit_id'] == 'submission-id'
+        assert submission['title'] == 'Title'
+        assert submission['bot_discord'] == {'sent': False, 'sent_utc': None}
+
+    def test_sync_git_repo_skips_or_logs_errors(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        db._should_sync_git = mocker.Mock(return_value=False)
+        db._commit_and_push_changes = mocker.Mock()
+
+        db._sync_git_repo()
+
+        db._commit_and_push_changes.assert_not_called()
+
+        db._should_sync_git.return_value = True
+        db._commit_and_push_changes.side_effect = Exception('boom')
+        db._sync_git_repo()
+
+    def test_commit_and_push_changes_paths(self, tmp_path, mocker):
+        db = self.bare_database(tmp_path)
+        db._json_files_to_sync = mocker.Mock(return_value=[])
+        db._configure_repo = mocker.Mock()
+        db._push_database_changes = mocker.Mock()
+        db.repo.git.status.return_value = ''
+
+        db._commit_and_push_changes()
+
+        db._json_files_to_sync.assert_not_called()
+
+        db.repo.git.status.return_value = 'M other.txt'
+        db._commit_and_push_changes()
+
+        db._configure_repo.assert_not_called()
+
+        json_file = os.path.join(str(tmp_path), 'test.json')
+        db._json_files_to_sync.return_value = [json_file]
+        db.repo.git.status.side_effect = ['M test.json', 'M test.json']
+        db._commit_and_push_changes()
+
+        db.repo.git.add.assert_called_once_with(json_file)
+        db._configure_repo.assert_called_once()
+        db.repo.git.commit.assert_called_once_with('-m', 'Update database files')
+        db._push_database_changes.assert_called_once()
+
+    def test_json_files_to_sync(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        (tmp_path / 'one.json').write_text('{}')
+        (tmp_path / 'two.txt').write_text('skip')
+
+        assert db._json_files_to_sync() == [os.path.join(str(tmp_path), 'one.json')]
+
+    def test_push_database_changes_success_and_failure(self, tmp_path):
+        db = self.bare_database(tmp_path)
+
+        db._push_database_changes()
+
+        db.repo.git.push.assert_called_once_with(db._authenticated_repo_url(), 'local-test')
+
+        db.repo.git.push.side_effect = git.exc.GitCommandError('push', 'failed')
+        db._push_database_changes()
+
+    def test_open_tinydb(self, tmp_path):
+        db = self.bare_database(tmp_path)
+        tinydb = db._open_tinydb()
+
+        try:
+            tinydb.insert({'value': 1})
+            assert tinydb.all() == [{'value': 1}]
+        finally:
+            tinydb.close()

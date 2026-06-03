@@ -51,9 +51,7 @@ async def role_update_task(bot: Bot, test_mode: bool = False) -> bool:
         return False
 
     # Check each user in the database for their GitHub sponsor status
-    with bot.db as db:
-        users_table = db.table('discord_users')
-        discord_users = users_table.all()
+    discord_users = _get_discord_users(bot=bot)
 
     # Return early if there are no users to process
     if not discord_users:
@@ -64,81 +62,150 @@ async def role_update_task(bot: Bot, test_mode: bool = False) -> bool:
 
     # Process each user
     for user_data in discord_users:
-        user_id = user_data.get('discord_id')
-        if not user_id:
-            continue
-
-        # Get the currently revocable roles, to ensure we don't remove roles that were added by another integration
-        # i.e.; any role that was added by our bot is safe to remove
-        revocable_roles = user_data.get('roles', []).copy()
-
-        # Check if the user is a GitHub sponsor
-        for edge in github_sponsors['data']['organization']['sponsorshipsAsMaintainer']['edges']:
-            sponsor = edge['node']['sponsorEntity']
-            if sponsor['login'] == user_data.get('github_username'):
-                # User is a sponsor
-                user_data['github_sponsor'] = True
-
-                monthly_amount = edge['node'].get('tier', {}).get('monthlyPriceInDollars', 0)
-
-                for tier, amount in sponsors.tier_map.items():
-                    if monthly_amount >= amount:
-                        user_data['roles'] = [tier, 'supporters']
-                        break
-                else:
-                    user_data['roles'] = []
-
-                break
-        else:
-            # User is not a sponsor
-            user_data['github_sponsor'] = False
-            user_data['roles'] = []
-
-        # Add GitHub user role if applicable
-        if user_data.get('github_username'):
-            user_data['roles'].append('github-user')
-
-        # Update the discord user roles
-        for g in bot.guilds:
-            roles = g.roles
-
-            role_map = {
-                'github-user': discord.utils.get(roles, name='github-user'),
-                'supporters': discord.utils.get(roles, name='supporters'),
-                't1-sponsors': discord.utils.get(roles, name='t1-sponsors'),
-                't2-sponsors': discord.utils.get(roles, name='t2-sponsors'),
-                't3-sponsors': discord.utils.get(roles, name='t3-sponsors'),
-                't4-sponsors': discord.utils.get(roles, name='t4-sponsors'),
-            }
-
-            user_roles = user_data['roles']
-
-            for user_role, role in role_map.items():
-                member = g.get_member(int(user_id))
-                role = role_map.get(user_role, None)
-                if not member or not role:
-                    continue
-
-                if user_role in user_roles:
-                    if not test_mode:
-                        await member.add_roles(role)
-                    else:
-                        # using a standard await fails inside unit tests, although it works normally
-                        # RuntimeError: Timeout context manager should be used inside a task
-                        add_future = asyncio.run_coroutine_threadsafe(member.add_roles(role), bot.loop)
-                        add_future.result()
-                elif user_role in revocable_roles:
-                    if not test_mode:
-                        await member.remove_roles(role)
-                    else:
-                        # using a standard await fails inside unit tests, although it works normally
-                        # RuntimeError: Timeout context manager should be used inside a task
-                        remove_future = asyncio.run_coroutine_threadsafe(member.remove_roles(role), bot.loop)
-                        remove_future.result()
-
-        # Update the user in the database
-        with bot.db as db:
-            users_table = db.table('discord_users')
-            users_table.update(user_data, doc_ids=[user_data.get('doc_id')])
+        await _process_discord_user_roles(
+            bot=bot,
+            user_data=user_data,
+            github_sponsors=github_sponsors,
+            test_mode=test_mode,
+        )
 
     return True
+
+
+def _get_discord_users(bot: Bot) -> list[dict]:
+    with bot.db as db:
+        users_table = db.table('discord_users')
+        return users_table.all()
+
+
+async def _process_discord_user_roles(
+        bot: Bot,
+        user_data: dict,
+        github_sponsors: dict,
+        test_mode: bool,
+):
+    user_id = user_data.get('discord_id')
+    if not user_id:
+        return
+
+    # Revocable roles were added by this bot and can be removed if no longer applicable.
+    revocable_roles = user_data.get('roles', []).copy()
+    _update_sponsor_role_data(user_data=user_data, github_sponsors=github_sponsors)
+
+    for guild in bot.guilds:
+        await _sync_guild_roles(
+            bot=bot,
+            guild=guild,
+            user_id=int(user_id),
+            user_roles=user_data['roles'],
+            revocable_roles=revocable_roles,
+            test_mode=test_mode,
+        )
+
+    _update_discord_user(bot=bot, user_data=user_data)
+
+
+def _update_sponsor_role_data(user_data: dict, github_sponsors: dict):
+    sponsor_edge = _find_sponsor_edge(
+        github_sponsors=github_sponsors,
+        github_username=user_data.get('github_username'),
+    )
+
+    if sponsor_edge:
+        user_data['github_sponsor'] = True
+        user_data['roles'] = _sponsor_roles(edge=sponsor_edge)
+    else:
+        user_data['github_sponsor'] = False
+        user_data['roles'] = []
+
+    # Add GitHub user role if applicable
+    if user_data.get('github_username'):
+        user_data['roles'].append('github-user')
+
+
+def _find_sponsor_edge(github_sponsors: dict, github_username: str) -> dict | None:
+    edges = github_sponsors['data']['organization']['sponsorshipsAsMaintainer']['edges']
+    for edge in edges:
+        sponsor = edge['node']['sponsorEntity']
+        if sponsor['login'] == github_username:
+            return edge
+
+    return None
+
+
+def _sponsor_roles(edge: dict) -> list[str]:
+    monthly_amount = edge['node'].get('tier', {}).get('monthlyPriceInDollars', 0)
+
+    for tier, amount in sponsors.tier_map.items():
+        if monthly_amount >= amount:
+            return [tier, 'supporters']
+
+    return []
+
+
+async def _sync_guild_roles(
+        bot: Bot,
+        guild: discord.Guild,
+        user_id: int,
+        user_roles: list[str],
+        revocable_roles: list[str],
+        test_mode: bool,
+):
+    member = guild.get_member(user_id)
+    if not member:
+        return
+
+    for user_role, role in _role_map(guild=guild).items():
+        if not role:
+            continue
+
+        await _sync_member_role(
+            bot=bot,
+            member=member,
+            role=role,
+            should_have_role=user_role in user_roles,
+            can_revoke_role=user_role in revocable_roles,
+            test_mode=test_mode,
+        )
+
+
+def _role_map(guild: discord.Guild) -> dict[str, discord.Role | None]:
+    roles = guild.roles
+    return {
+        'github-user': discord.utils.get(roles, name='github-user'),
+        'supporters': discord.utils.get(roles, name='supporters'),
+        't1-sponsors': discord.utils.get(roles, name='t1-sponsors'),
+        't2-sponsors': discord.utils.get(roles, name='t2-sponsors'),
+        't3-sponsors': discord.utils.get(roles, name='t3-sponsors'),
+        't4-sponsors': discord.utils.get(roles, name='t4-sponsors'),
+    }
+
+
+async def _sync_member_role(
+        bot: Bot,
+        member: discord.Member,
+        role: discord.Role,
+        should_have_role: bool,
+        can_revoke_role: bool,
+        test_mode: bool,
+):
+    if should_have_role:
+        await _run_role_action(bot=bot, test_mode=test_mode, action=member.add_roles, role=role)
+    elif can_revoke_role:
+        await _run_role_action(bot=bot, test_mode=test_mode, action=member.remove_roles, role=role)
+
+
+async def _run_role_action(bot: Bot, test_mode: bool, action, role: discord.Role):
+    if not test_mode:
+        await action(role)
+        return
+
+    # A standard await fails in unit tests: RuntimeError: Timeout context manager should be used inside a task.
+    future = asyncio.run_coroutine_threadsafe(action(role), bot.loop)
+    future.result()
+
+
+def _update_discord_user(bot: Bot, user_data: dict):
+    with bot.db as db:
+        users_table = db.table('discord_users')
+        users_table.update(user_data, doc_ids=[user_data.get('doc_id')])

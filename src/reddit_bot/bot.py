@@ -393,48 +393,50 @@ class Bot:
     def _comment_loop(self, test: bool = False):
         # process comments and then keep monitoring
         reason = inspector.current_name()
-        while True:
-            if self.STOP_SIGNAL:
-                break
-
-            if self.DEGRADED and reason in self.DEGRADED_REASONS and len(self.DEGRADED_REASONS) == 1:
-                self.DEGRADED = False
-
-            try:
-                for comment in self.subreddit.stream.comments():
-                    self.process_comment(comment=comment)
-                    if self.STOP_SIGNAL:
-                        break
-                    if test:
-                        return comment
-            except prawcore.exceptions.ServerError:
-                logger.exception("Server Error")
-                self.DEGRADED = True
-                self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
-                time.sleep(60)
+        return self._stream_loop(
+            stream_factory=self.subreddit.stream.comments,
+            processor=self.process_comment,
+            reason=reason,
+            test=test,
+        )
 
     def _submission_loop(self, test: bool = False):
         # process submissions and then keep monitoring
         reason = inspector.current_name()
+        return self._stream_loop(
+            stream_factory=self.subreddit.stream.submissions,
+            processor=self.process_submission,
+            reason=reason,
+            test=test,
+        )
+
+    def _stream_loop(self, stream_factory, processor, reason: str, test: bool = False):
         while True:
             if self.STOP_SIGNAL:
                 break
 
-            if self.DEGRADED and reason in self.DEGRADED_REASONS and len(self.DEGRADED_REASONS) == 1:
-                self.DEGRADED = False
+            self._clear_degraded_reason(reason=reason)
 
             try:
-                for submission in self.subreddit.stream.submissions():
-                    self.process_submission(submission=submission)
+                for item in stream_factory():
+                    processor(item)
                     if self.STOP_SIGNAL:
                         break
                     if test:
-                        return submission
+                        return item
             except prawcore.exceptions.ServerError:
-                logger.exception("Server Error")
-                self.DEGRADED = True
-                self.DEGRADED_REASONS.append(reason) if reason not in self.DEGRADED_REASONS else None
-                time.sleep(60)
+                self._handle_stream_server_error(reason=reason)
+
+    def _clear_degraded_reason(self, reason: str):
+        if self.DEGRADED and reason in self.DEGRADED_REASONS and len(self.DEGRADED_REASONS) == 1:
+            self.DEGRADED = False
+
+    def _handle_stream_server_error(self, reason: str):
+        logger.exception("Server Error")
+        self.DEGRADED = True
+        if reason not in self.DEGRADED_REASONS:
+            self.DEGRADED_REASONS.append(reason)
+        time.sleep(60)
 
     def start(self):
         # start comment and submission loops in separate threads

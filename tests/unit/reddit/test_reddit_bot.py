@@ -13,6 +13,7 @@ from urllib.parse import quote_plus
 from betamax import Betamax, cassette
 from betamax_serializers.pretty_json import PrettyJSONSerializer
 from praw.config import _NotSet
+import prawcore
 import pytest
 
 # local imports
@@ -209,3 +210,91 @@ class TestBot:
         with recorder.use_cassette(request.node.name):
             submission = bot._submission_loop(test=True)
             assert submission.author
+
+
+def bare_bot():
+    bot = Bot.__new__(Bot)
+    bot.STOP_SIGNAL = False
+    bot.DEGRADED = False
+    bot.DEGRADED_REASONS = []
+    return bot
+
+
+def test_stream_loop_stops_before_streaming():
+    bot = bare_bot()
+    bot.STOP_SIGNAL = True
+    processed = []
+
+    result = bot._stream_loop(
+        stream_factory=lambda: iter(['item']),
+        processor=processed.append,
+        reason='reason',
+        test=True,
+    )
+
+    assert result is None
+    assert processed == []
+
+
+def test_stream_loop_stops_after_processing_item():
+    bot = bare_bot()
+    processed = []
+
+    def processor(item):
+        processed.append(item)
+        bot.STOP_SIGNAL = True
+
+    result = bot._stream_loop(
+        stream_factory=lambda: iter(['item']),
+        processor=processor,
+        reason='reason',
+        test=True,
+    )
+
+    assert result is None
+    assert processed == ['item']
+
+
+def test_clear_degraded_reason():
+    bot = bare_bot()
+    bot.DEGRADED = True
+    bot.DEGRADED_REASONS = ['reason']
+
+    bot._clear_degraded_reason(reason='reason')
+
+    assert bot.DEGRADED is False
+
+
+def test_stream_loop_handles_server_error(mocker):
+    bot = bare_bot()
+    sleep = mocker.patch('src.reddit_bot.bot.time.sleep')
+    response = mocker.Mock(status_code=500)
+
+    def stream_factory():
+        bot.STOP_SIGNAL = True
+        raise prawcore.exceptions.ServerError(response)
+
+    bot._stream_loop(
+        stream_factory=stream_factory,
+        processor=mocker.Mock(),
+        reason='server-error',
+        test=False,
+    )
+
+    assert bot.DEGRADED is True
+    assert bot.DEGRADED_REASONS == ['server-error']
+    sleep.assert_called_once_with(60)
+
+
+def test_handle_stream_server_error_keeps_existing_reason(mocker):
+    bot = bare_bot()
+    bot.DEGRADED_REASONS = ['server-error']
+    sleep = mocker.patch('src.reddit_bot.bot.time.sleep')
+
+    try:
+        raise prawcore.exceptions.ServerError(mocker.Mock(status_code=500))
+    except prawcore.exceptions.ServerError:
+        bot._handle_stream_server_error(reason='server-error')
+
+    assert bot.DEGRADED_REASONS == ['server-error']
+    sleep.assert_called_once_with(60)
