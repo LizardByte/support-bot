@@ -27,7 +27,7 @@ dependencies = [
     "Flask-WTF==1.3.0",
     "GitPython==3.1.50",
     "libgravatar==1.0.4",
-    "mistletoe==1.5.1",
+    "mistletoe==1.6.0",
     "praw==7.8.2",
     "py-cord==2.8.0",
     "python-dotenv==1.2.2",
