@@ -34,10 +34,10 @@ def _redact_traceback(tb):
 def _redact_frame_locals(frame_locals: dict):
     self_arg = frame_locals.get('self')
 
-    if isinstance(self_arg, prawcore.requestor.Requestor):
+    if isinstance(self_arg, prawcore.Requestor):
         _redact_requestor_kwargs(kwargs_arg=frame_locals.get('kwargs'))
 
-    if isinstance(self_arg, prawcore.auth.TrustedAuthenticator):
+    if isinstance(self_arg, prawcore.TrustedAuthenticator):
         _redact_token_mapping(data=frame_locals.get('data'))
 
 
