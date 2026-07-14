@@ -329,6 +329,15 @@ wheels = [
 ]
 
 [[package]]
+name = "defusedxml"
+version = "0.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/d5/c66da9b79e5bdb124974bfe172b4daf3c984ebd9c2a06e2b8a4dc7331c72/defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69", size = 75520, upload-time = "2021-03-08T10:59:26.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/6c/aa3f2f849e01cb6a001cd8554a88d4c77c5c1a31c95bdf1cf9301e6d9ef4/defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61", size = 25604, upload-time = "2021-03-08T10:59:24.45Z" },
+]
+
+[[package]]
 name = "flask"
 version = "3.1.3"
 source = { registry = "https://pypi.org/simple" }
@@ -585,28 +594,29 @@ wheels = [
 
 [[package]]
 name = "praw"
-version = "7.8.2"
+version = "8.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "defusedxml" },
     { name = "prawcore" },
     { name = "update-checker" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/95/78/dfac2a76e04298255335627d2b8acf19cf61e6609a509c3780c35960a1ba/praw-7.8.2.tar.gz", hash = "sha256:6230a2329e5c927ebbb45ebeb17d60761ace5ed65336a78fcfeab49937b9615b", size = 154223, upload-time = "2026-06-08T01:36:22.056Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/07/bee3bab8634965354402d28aaabae7932097dfa5d9895afbeebeac24de69/praw-8.0.2.tar.gz", hash = "sha256:29bfe995f7f24017dd8eee36153085ad27de1740f13c7dcdb08df42a24a0dae2", size = 23798066, upload-time = "2026-06-24T00:06:31.429Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/93/9e/bfe0e74f74da63e09bc7802a7e6cfa2e17acf1c87c481a25a302bde57262/praw-7.8.2-py3-none-any.whl", hash = "sha256:ab0e2da4e1c03c6cfb3fdb91c1ddf3a42ecd09d6f09222ad5393ac89e8b97af5", size = 189372, upload-time = "2026-06-08T01:36:20.293Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/7e/0831abb5ef9db1db8981f2c230c5a71ecc81732a7924ec79b076f5eea693/praw-8.0.2-py3-none-any.whl", hash = "sha256:22a988bef07e2d840ab062ae25f760c5bfc6367b9ecaab69f71e7ff511d75564", size = 199203, upload-time = "2026-06-24T00:06:29.73Z" },
 ]
 
 [[package]]
 name = "prawcore"
-version = "2.4.0"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8a/62/d4c99cf472205f1e5da846b058435a6a7c988abf8eb6f7d632a7f32f4a77/prawcore-2.4.0.tar.gz", hash = "sha256:b7b2b5a1d04406e086ab4e79988dc794df16059862f329f4c6a43ed09986c335", size = 15862, upload-time = "2023-10-01T23:30:49.408Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/06/d6eaaaa5ec11ebc56b176e16233c4dbd7ae5a51a9d82649cad8aa2ba3b43/prawcore-4.0.0.tar.gz", hash = "sha256:c7e4d6e1b71e2b9c88680aee467e3e07d22df4c91bb01488ce2a3ab43d76b076", size = 1208273, upload-time = "2026-06-13T02:00:32.083Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/5c/8af904314e42d5401afcfaff69940dc448e974f80f7aa39b241a4fbf0cf1/prawcore-2.4.0-py3-none-any.whl", hash = "sha256:29af5da58d85704b439ad3c820873ad541f4535e00bb98c66f0fbcc8c603065a", size = 17203, upload-time = "2023-10-01T23:30:47.651Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/97/e52a0a62a14b17ce382d68d00a838887deab52eddac8d9e87f4e6274efcd/prawcore-4.0.0-py3-none-any.whl", hash = "sha256:53f91bcd4cb25a26ca58f3ba7c5bf83d9d93a74025aae2c926bc6b0d5fd11df7", size = 19294, upload-time = "2026-06-13T02:00:30.519Z" },
 ]
 
 [[package]]
@@ -823,7 +833,7 @@ requires-dist = [
     { name = "gitpython", specifier = "==3.1.51" },
     { name = "libgravatar", specifier = "==1.0.4" },
     { name = "mistletoe", specifier = "==1.6.0" },
-    { name = "praw", specifier = "==7.8.2" },
+    { name = "praw", specifier = "==8.0.2" },
     { name = "py-cord", specifier = "==2.8.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.1.1" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.4.0" },

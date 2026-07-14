@@ -138,9 +138,9 @@ class TestBot:
 
     @pytest.fixture(scope='session')
     def session(self, bot):
-        http = bot.reddit._core._requestor._http
-        http.headers['Accept-Encoding'] = 'identity'  # ensure response is human readable
-        return http
+        requestor = bot.reddit._core.requestor
+        requestor.headers['Accept-Encoding'] = 'identity'  # ensure response is human readable
+        return requestor
 
     @pytest.fixture(scope='session')
     def recorder(self, session):
