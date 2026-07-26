@@ -29,7 +29,7 @@ dependencies = [
     "libgravatar==1.0.4",
     "mistletoe==1.6.0",
     "praw==8.0.2",
-    "py-cord==2.8.0",
+    "py-cord==2.8.1",
     "python-dotenv==1.2.2",
     "requests==2.34.2",
     "requests-oauthlib==2.0.0",
