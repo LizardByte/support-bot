@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # artifacts: false
 # platforms: linux/amd64
-FROM ghcr.io/astral-sh/uv:0.11-python3.14-trixie-slim
+FROM ghcr.io/astral-sh/uv:0.12-python3.14-trixie-slim
 
 # CI args
 ARG BRANCH
