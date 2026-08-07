@@ -33,7 +33,7 @@ dependencies = [
     "python-dotenv==1.2.2",
     "requests==2.34.2",
     "requests-oauthlib==2.0.0",
-    "tinydb==4.8.2",
+    "tinydb==4.9.0",
 ]
 
 [project.optional-dependencies]
