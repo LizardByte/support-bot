@@ -55,6 +55,6 @@ chown -R supportbot:supportbot /app /data "${VIRTUAL_ENV}"
 _SETUP
 
 # switch to non-root user
-USER supportbot
+USER 1000
 
 CMD ["python", "-m", "src"]
