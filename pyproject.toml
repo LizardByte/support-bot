@@ -30,7 +30,7 @@ dependencies = [
     "mistletoe==1.6.0",
     "praw==8.0.3",
     "py-cord==2.8.1",
-    "python-dotenv==1.2.2",
+    "python-dotenv==1.2.3",
     "requests==2.34.2",
     "requests-oauthlib==2.0.0",
     "tinydb==4.9.0",
