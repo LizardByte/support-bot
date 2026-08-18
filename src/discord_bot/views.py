@@ -4,12 +4,10 @@ from typing import Tuple
 # lib imports
 import discord
 from discord.ui.select import Select
-from discord.ui.button import Button
 
 # local imports
 from src.common.common import avatar, bot_name, colors
 from src.discord_bot.helpers import get_json
-from src.discord_bot.modals import RefundModal
 
 
 class DocsCommandDefaultProjects:
@@ -305,15 +303,3 @@ class DonateCommandView(discord.ui.View):
             )
 
             self.add_item(button)
-
-
-class RefundCommandView(discord.ui.View):
-    """
-    Class representing `discord.ui.View` for ``refund`` slash command.
-    """
-    def __init__(self):
-        super().__init__(timeout=None)  # timeout of the view must be set to None, view is persistent
-
-    @discord.ui.button(label="Refund form", style=discord.ButtonStyle.red, custom_id='button-refund')
-    async def button_callback(self, button: Button, interaction: discord.Interaction):
-        await interaction.response.send_modal(RefundModal(title="Refund Request Form"))

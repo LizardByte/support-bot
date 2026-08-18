@@ -8,7 +8,6 @@ from discord.commands import Option
 
 # local imports
 from src.common.common import avatar, bot_name, colors
-from src.discord_bot.views import RefundCommandView
 from src.discord_bot import cogs_common
 
 
@@ -69,41 +68,6 @@ class FunCommandsCog(discord.Cog):
             await ctx.respond(user.mention, embed=embed)
         else:
             await ctx.respond(embed=embed)
-
-    @discord.slash_command(
-        name="refund",
-        description="Get refund form"
-    )
-    async def refund_command(
-            self,
-            ctx: discord.ApplicationContext,
-            user: Option(
-                discord.Member,
-                description=cogs_common.user_mention_desc,
-                required=False,
-            ),
-    ):
-        """
-        Sends a discord embed, with a `Modal`.
-        This command is pure satire.
-
-        Parameters
-        ----------
-        ctx : discord.ApplicationContext
-            Request message context.
-        user : discord.Member
-            Username to mention in response.
-        """
-        embed = discord.Embed(title="Refund request",
-                              description="Original purchase price: $0.00\n\n"
-                                          "Select the button below to request a full refund!",
-                              color=colors['red'])
-        embed.set_footer(text=bot_name, icon_url=avatar)
-
-        if user:
-            await ctx.respond(user.mention, embed=embed, view=RefundCommandView())
-        else:
-            await ctx.respond(embed=embed, view=RefundCommandView())
 
 
 def setup(bot: discord.Bot):
