@@ -51,24 +51,20 @@ async def test_build_leaderboard_embed_discord(mocker):
 
 
 @pytest.mark.asyncio
-async def test_build_leaderboard_embed_reddit(mocker):
+async def test_build_leaderboard_embed_reddit(mocker, monkeypatch):
     cog = rank_cog(mocker)
-    original_reddit_bot = globals.REDDIT_BOT
-    globals.REDDIT_BOT = SimpleNamespace(
+    monkeypatch.setattr(globals, 'REDDIT_BOT', SimpleNamespace(
         subreddit=SimpleNamespace(community_icon='https://example.com/reddit.png'),
-    )
+    ))
 
-    try:
-        embed = await cog.build_leaderboard_embed(
-            platform='reddit',
-            leaderboard_data=[{'user_id': 'abc', 'username': 'reddit_user', 'xp': 0}],
-            page=1,
-            total_pages=1,
-            total_users=1,
-            ctx=SimpleNamespace(guild=SimpleNamespace(icon=None)),
-        )
-    finally:
-        globals.REDDIT_BOT = original_reddit_bot
+    embed = await cog.build_leaderboard_embed(
+        platform='reddit',
+        leaderboard_data=[{'user_id': 'abc', 'username': 'reddit_user', 'xp': 0}],
+        page=1,
+        total_pages=1,
+        total_users=1,
+        ctx=SimpleNamespace(guild=SimpleNamespace(icon=None)),
+    )
 
     assert embed.title == '🏆 Reddit XP Leaderboard'
     assert '**u/reddit_user**' in embed.description

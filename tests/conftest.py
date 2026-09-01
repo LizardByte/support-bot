@@ -34,7 +34,7 @@ def discord_bot():
     globals.DISCORD_BOT = None
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def discord_db_users(discord_bot):
     with discord_bot.db as db:
         users_table = db.table('discord_users')
@@ -57,7 +57,7 @@ def discord_db_users(discord_bot):
     discord_bot.oauth_states.clear()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def no_github_token():
     og_token = os.getenv('GITHUB_TOKEN')
     del os.environ['GITHUB_TOKEN']
