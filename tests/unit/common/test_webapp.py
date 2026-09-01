@@ -9,7 +9,7 @@ import pytest
 from src.common import webapp
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def test_client():
     """Create a test client for testing webapp endpoints"""
     app = webapp.app

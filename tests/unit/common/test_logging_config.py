@@ -351,7 +351,8 @@ class TestLogFormatting:
         log_content = log_file.read_text()
 
         # Check format includes file and line number
-        assert "[" in log_content and "]" in log_content
+        assert "[" in log_content
+        assert "]" in log_content
         assert "test_format" in log_content
         assert "Test message" in log_content
 

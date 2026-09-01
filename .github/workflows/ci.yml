@@ -64,7 +64,7 @@ jobs:
       - name: Install Python Dependencies
         env:
           UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
-        run: uv sync --locked --extra dev
+        run: uv sync --no-build --no-install-project --locked --extra dev
 
       - name: Test with pytest
         id: test
@@ -84,7 +84,7 @@ jobs:
           REDDIT_USERNAME: ${{ vars.REDDIT_USERNAME }}
           REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
         shell: bash
-        run: uv run --locked --extra dev pytest tests
+        run: uv run --no-build --no-sync python -m pytest tests
 
       - name: Upload test coverage
         # any except canceled or skipped

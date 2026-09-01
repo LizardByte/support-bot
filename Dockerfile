@@ -40,14 +40,11 @@ rm -rf /var/lib/apt/lists/*
 useradd -m -u 1000 -s /bin/bash supportbot
 
 # write the version to the version file
-cat > src/common/version.py <<EOF
-"""Version information for support-bot."""
-
-__version__ = "${BUILD_VERSION}"
-EOF
+printf '%s\n' '"""Version information for support-bot."""' '' "__version__ = \"${BUILD_VERSION}\"" \
+  > src/common/version.py
 
 # install python dependencies
-uv sync --frozen --no-dev --no-install-project --python python --no-python-downloads
+uv sync --frozen --no-build --no-dev --no-install-project --python python --no-python-downloads
 
 # set ownership of app and data directories
 mkdir -p /data

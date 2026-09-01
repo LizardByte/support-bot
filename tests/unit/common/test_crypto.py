@@ -23,11 +23,10 @@ def setup_certificates():
         os.remove(KEY_FILE)
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def clear_certificates():
     os.remove(CERT_FILE)
     os.remove(KEY_FILE)
-    yield
 
 
 def test_check_expiration(setup_certificates):
