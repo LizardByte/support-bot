@@ -87,6 +87,11 @@ async def test_role_update_task(discord_bot, discord_db_users, mocker, skip):
     # Patch datetime.datetime at the location where it's imported in `tasks`
     mock_datetime = mocker.patch('src.discord_bot.tasks.datetime', autospec=True)
     mock_datetime.now.return_value = datetime(2023, 1, 1, 0, 1 if skip else 0, 0, tzinfo=timezone.utc)
+    mocker.patch(
+        'src.discord_bot.tasks.sponsors.get_github_sponsors',
+        return_value=github_sponsors_payload(),
+    )
+    sync_guild_roles = mocker.patch('src.discord_bot.tasks._sync_guild_roles', new_callable=mocker.AsyncMock)
 
     # Run the task
     result = await tasks.role_update_task(bot=discord_bot, test_mode=True)
@@ -95,6 +100,7 @@ async def test_role_update_task(discord_bot, discord_db_users, mocker, skip):
 
     # Verify that datetime.now() was called
     mock_datetime.now.assert_called_once()
+    assert sync_guild_roles.await_count == (0 if skip else len(discord_bot.guilds))
 
 
 def github_sponsors_payload(monthly_amount=25, login='test_user'):
