@@ -2,6 +2,7 @@
 import asyncio
 import copy
 from datetime import datetime, UTC
+import logging
 
 # lib imports
 import discord
@@ -10,6 +11,9 @@ from discord.ext import tasks
 # local imports
 from src.common import sponsors
 from src.discord_bot.bot import Bot
+
+
+logger = logging.getLogger(__name__)
 
 
 @tasks.loop(seconds=30)
@@ -84,9 +88,12 @@ async def _process_discord_user_roles(
         github_sponsors: dict,
         test_mode: bool,
 ):
-    user_id = user_data.get('discord_id')
+    user_id = user_data.get('user_id') or user_data.get('discord_id')
     if not user_id:
         return
+
+    # Normalize records created by the legacy schema.
+    user_data['user_id'] = int(user_id)
 
     # Revocable roles were added by this bot and can be removed if no longer applicable.
     revocable_roles = user_data.get('roles', []).copy()
@@ -151,7 +158,12 @@ async def _sync_guild_roles(
         revocable_roles: list[str],
         test_mode: bool,
 ):
-    member = guild.get_member(user_id)
+    try:
+        member = await guild.fetch_member(user_id)
+    except discord.HTTPException as error:
+        logger.warning("Unable to fetch Discord user %s from guild %s: %s", user_id, guild.id, error)
+        return
+
     if not member:
         return
 
@@ -208,4 +220,5 @@ async def _run_role_action(bot: Bot, test_mode: bool, action, role: discord.Role
 def _update_discord_user(bot: Bot, user_data: dict):
     with bot.db as db:
         users_table = db.table('discord_users')
-        users_table.update(user_data, doc_ids=[user_data.get('doc_id')])
+        doc_id = getattr(user_data, 'doc_id', None) or user_data.get('doc_id')
+        users_table.update(user_data, doc_ids=[doc_id])

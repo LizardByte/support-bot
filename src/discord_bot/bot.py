@@ -22,15 +22,18 @@ class Bot(discord.Bot):
     Discord bot class.
 
     This class extends the discord.Bot class to include additional functionality. The class will automatically
-    enable all intents and sync commands on startup. The class will also update the bot presence, username, and avatar
-    when the bot is ready.
+    enable the default non-privileged intents and sync commands on startup. The class will also update the bot presence,
+    username, and avatar when the bot is ready.
     """
     def __init__(self, *args, **kwargs):
         # tasks need to be imported here to avoid circular imports
         from src.discord_bot import tasks
 
         if 'intents' not in kwargs:
-            intents = discord.Intents.all()
+            intents = discord.Intents.default()
+            intents.members = False
+            intents.presences = False
+            intents.message_content = False
             kwargs['intents'] = intents
         if 'auto_sync_commands' not in kwargs:
             kwargs['auto_sync_commands'] = True
