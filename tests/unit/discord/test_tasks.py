@@ -4,6 +4,7 @@ import os
 from types import SimpleNamespace
 
 # lib imports
+import discord
 import pytest
 
 # local imports
@@ -170,7 +171,7 @@ def test_role_map(mocker):
 async def test_sync_guild_roles_skips_missing_member_or_role(mocker):
     bot = SimpleNamespace(loop=mocker.Mock())
     guild = SimpleNamespace(
-        get_member=mocker.Mock(return_value=None),
+        fetch_member=mocker.AsyncMock(return_value=None),
         roles=[],
     )
 
@@ -183,11 +184,11 @@ async def test_sync_guild_roles_skips_missing_member_or_role(mocker):
         test_mode=False,
     )
 
-    guild.get_member.assert_called_once_with(123)
+    guild.fetch_member.assert_awaited_once_with(123)
 
     member = SimpleNamespace(add_roles=mocker.AsyncMock(), remove_roles=mocker.AsyncMock())
     role = SimpleNamespace(name='github-user')
-    guild.get_member.return_value = member
+    guild.fetch_member.return_value = member
     guild.roles = [role]
 
     await tasks._sync_guild_roles(
@@ -201,6 +202,29 @@ async def test_sync_guild_roles_skips_missing_member_or_role(mocker):
 
     member.add_roles.assert_not_called()
     member.remove_roles.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_sync_guild_roles_handles_member_fetch_failure(caplog, mocker):
+    response = SimpleNamespace(status=404, reason='Not Found')
+    guild = SimpleNamespace(
+        fetch_member=mocker.AsyncMock(
+            side_effect=discord.NotFound(response=response, message='Unknown Member'),
+        ),
+        id=456,
+        roles=[],
+    )
+
+    await tasks._sync_guild_roles(
+        bot=SimpleNamespace(loop=mocker.Mock()),
+        guild=guild,
+        user_id=123,
+        user_roles=['github-user'],
+        revocable_roles=[],
+        test_mode=False,
+    )
+
+    assert "Unable to fetch Discord user 123 from guild 456" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -249,19 +273,24 @@ async def test_run_role_action_test_mode(mocker):
 
 
 @pytest.mark.asyncio
-async def test_process_discord_user_roles(mocker):
+@pytest.mark.parametrize(('id_field', 'id_value'), [
+    ('user_id', 123),
+    ('discord_id', '123'),
+])
+async def test_process_discord_user_roles(mocker, id_field, id_value):
     role = SimpleNamespace(name='github-user')
     member = SimpleNamespace(add_roles=mocker.AsyncMock(), remove_roles=mocker.AsyncMock())
     guild = SimpleNamespace(
-        get_member=mocker.Mock(return_value=member),
+        fetch_member=mocker.AsyncMock(return_value=member),
         roles=[role],
+        id=456,
     )
     users_table = SimpleNamespace(update=mocker.Mock())
     db_context = mocker.MagicMock()
     db_context.__enter__.return_value.table.return_value = users_table
     bot = SimpleNamespace(db=db_context, guilds=[guild], loop=mocker.Mock())
     user_data = {
-        'discord_id': '123',
+        id_field: id_value,
         'github_username': 'test_user',
         'roles': [],
         'doc_id': 5,
@@ -275,6 +304,7 @@ async def test_process_discord_user_roles(mocker):
     )
 
     member.add_roles.assert_awaited_once_with(role)
+    assert user_data['user_id'] == 123
     users_table.update.assert_called_once_with(user_data, doc_ids=[5])
 
 

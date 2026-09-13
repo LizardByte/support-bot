@@ -12,6 +12,9 @@ from src.common import common
 
 def test_bot_on_ready(discord_bot):
     assert discord_bot is not None
+    assert discord_bot.intents.members is False
+    assert discord_bot.intents.presences is False
+    assert discord_bot.intents.message_content is False
     assert discord_bot.guilds
     assert discord_bot.guilds[0].name == "ReenigneArcher's test server"
     assert discord_bot.user.id == 939171917578002502

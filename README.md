@@ -31,10 +31,9 @@ platforms such as GitHub discussions/issues might be added in the future.
 ### Discord
 
 * Setup an application at [discord developer portal](https://discord.com/developers/applications).
-* On `Bot` page enabled these:
-  * Presence Intent
-  * Server Members Intent
-  * Copy the `Token`
+* On the `Bot` page, copy the `Token`.
+* Do not enable privileged gateway intents. The bot uses non-privileged message events and fetches individual server
+  members on demand.
 
 ### Reddit
 
