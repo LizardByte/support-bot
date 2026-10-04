@@ -16,10 +16,12 @@ class FunCommandsCog(discord.Cog):
         self.bot = bot
 
     async def get_random_quotes(self) -> list[dict]:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url='https://app.lizardbyte.dev/uno/random-quotes/games.json') as response:
-                response.raise_for_status()
-                return await response.json()
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(url='https://app.lizardbyte.dev/uno/random-quotes/games.json') as response,
+        ):
+            response.raise_for_status()
+            return await response.json()
 
     @discord.slash_command(
         name="random",

@@ -1,7 +1,7 @@
 # standard imports
 import logging
 import os
-from typing import Union
+from typing import Literal
 
 # lib imports
 import requests
@@ -18,13 +18,13 @@ tier_map = {
 }
 
 
-def get_github_sponsors() -> Union[dict, False]:
+def get_github_sponsors() -> dict | Literal[False]:
     """
     Get list of GitHub sponsors.
 
     Returns
     -------
-    Union[dict, False]
+    dict | Literal[False]
         JSON response containing the list of sponsors. False if an error occurred.
     """
     token = os.getenv("GITHUB_TOKEN")

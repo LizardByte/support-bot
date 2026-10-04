@@ -1,7 +1,6 @@
 # standard imports
 import logging
 import os
-from typing import Union
 
 # lib imports
 import discord
@@ -397,7 +396,7 @@ class RankCog(discord.Cog):
     async def get_leaderboard_data(
             self,
             platform: str,
-            community_id: Union[int, str],
+            community_id: int | str,
             page: int = 1,
             per_page: int = 10,
     ):

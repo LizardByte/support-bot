@@ -5,7 +5,7 @@ import math
 import random
 import threading
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 # lib imports
 import aiohttp
@@ -60,7 +60,7 @@ class RankSystem:
         self.last_activity = {}  # Tracks last activity time for cooldowns
 
     @staticmethod
-    def get_community_id(platform: str, user: Union[DiscordUser, RedditUser]) -> Optional[Union[int, str]]:
+    def get_community_id(platform: str, user: DiscordUser | RedditUser) -> int | str | None:
         """
         Get the community ID for a user based on platform.
 
@@ -68,12 +68,12 @@ class RankSystem:
         ----------
         platform : str
             Platform identifier ('discord' or 'reddit')
-        user : Union[DiscordUser, RedditUser]
+        user : DiscordUser | RedditUser
             Discord or Reddit user object
 
         Returns
         -------
-        Union[int, str]
+        int | str
             Community ID (guild_id for Discord, subreddit_id for Reddit)
         """
         if platform == 'discord':
@@ -138,7 +138,7 @@ class RankSystem:
     def get_rank_data(
             self,
             platform: str,
-            user: Union[DiscordUser, RedditUser],
+            user: DiscordUser | RedditUser,
             create_if_not_exists: bool = False,
     ) -> dict:
         """
@@ -148,7 +148,7 @@ class RankSystem:
         ----------
         platform : str
             Platform identifier (e.g., 'discord', 'reddit')
-        user : Union[DiscordUser, RedditUser]
+        user : DiscordUser | RedditUser
             Discord or Reddit user object
         create_if_not_exists : bool
             If True, create a new user entry if it doesn't exist
@@ -189,7 +189,7 @@ class RankSystem:
 
         return user_data
 
-    def update_rank_data(self, platform: str, user: Union[DiscordUser, RedditUser], data: dict) -> dict:
+    def update_rank_data(self, platform: str, user: DiscordUser | RedditUser, data: dict) -> dict:
         """
         Update rank data for a user.
 
@@ -197,7 +197,7 @@ class RankSystem:
         ----------
         platform : str
             Platform identifier (e.g., 'discord', 'reddit')
-        user : Union[DiscordUser, RedditUser]
+        user : DiscordUser | RedditUser
             Discord or Reddit user object
         data : dict
             New data to update
@@ -219,7 +219,7 @@ class RankSystem:
             data=data,
         )
 
-    def award_xp(self, platform: str, user: Union[DiscordUser, RedditUser]) -> Optional[dict]:
+    def award_xp(self, platform: str, user: DiscordUser | RedditUser) -> Optional[dict]:
         """
         Award XP to a user with cooldown enforcement.
 
@@ -227,7 +227,7 @@ class RankSystem:
         ----------
         platform : str
             Platform identifier (e.g., 'discord', 'reddit')
-        user : Union[DiscordUser, RedditUser]
+        user : DiscordUser | RedditUser
             Discord or Reddit user object
 
         Returns
@@ -287,8 +287,8 @@ class RankSystem:
     def get_leaderboard(
             self,
             platform: str,
-            user: Optional[Union[DiscordUser, RedditUser]] = None,
-            community_id: Optional[Union[int, str]] = None,
+            user: DiscordUser | RedditUser | None = None,
+            community_id: int | str | None = None,
             limit: int = 100,
             offset: int = 0,
     ) -> List[dict]:
@@ -299,9 +299,9 @@ class RankSystem:
         ----------
         platform : str
             Platform identifier (e.g., 'discord', 'reddit')
-        user : Optional[Union[DiscordUser, RedditUser]]
+        user : DiscordUser | RedditUser | None
             User object to determine community_id if not explicitly provided
-        community_id : Optional[Union[int, str]]
+        community_id : int | str | None
             Community identifier (guild_id for Discord, subreddit_id for Reddit)
         limit : int
             Maximum number of entries to return
@@ -338,7 +338,7 @@ class RankSystem:
 
         return leaderboard
 
-    def get_user_rank_position(self, platform: str, user: Union[DiscordUser, RedditUser]) -> Optional[int]:
+    def get_user_rank_position(self, platform: str, user: DiscordUser | RedditUser) -> Optional[int]:
         """
         Get the exact rank position of a user on the leaderboard without any limits.
 
@@ -346,7 +346,7 @@ class RankSystem:
         ----------
         platform : str
             Platform identifier (e.g., 'discord', 'reddit')
-        user : Union[DiscordUser, RedditUser]
+        user : DiscordUser | RedditUser
             Discord or Reddit user object
 
         Returns
@@ -377,8 +377,8 @@ class RankSystem:
     def get_migration_status(
             self,
             platform: str,
-            community_id: Union[int, str],
-            source_id: Union[int, str],
+            community_id: int | str,
+            source_id: int | str,
     ) -> Optional[dict]:
         """
         Check if migration has already been performed for a specific source.
@@ -387,9 +387,9 @@ class RankSystem:
         ----------
         platform : str
             Platform identifier (e.g., 'discord', 'reddit')
-        community_id : Union[int, str]
+        community_id : int | str
             Community identifier (guild_id or subreddit_id)
-        source_id : Union[int, str]
+        source_id : int | str
             Source identifier (e.g., guild_id for Mee6)
 
         Returns
@@ -406,8 +406,8 @@ class RankSystem:
     def set_migration_completed(
             self,
             platform: str,
-            community_id: Union[int, str],
-            source_id: Union[int, str],
+            community_id: int | str,
+            source_id: int | str,
             stats: dict,
     ) -> dict:
         """
@@ -417,9 +417,9 @@ class RankSystem:
         ----------
         platform : str
             Platform identifier (e.g., 'discord', 'reddit')
-        community_id : Union[int, str]
+        community_id : int | str
             Community identifier (guild_id or subreddit_id)
-        source_id : Union[int, str]
+        source_id : int | str
             Source identifier (e.g., guild_id for Mee6)
         stats : dict
             Migration statistics
@@ -441,7 +441,7 @@ class RankSystem:
             reddit_bot,
             reddit_db,
             community_id: str,
-    ) -> Dict[str, Union[int, str]]:
+    ) -> Dict[str, int | str]:
         """
         Migrate user data from Reddit database.
 
@@ -458,7 +458,7 @@ class RankSystem:
 
         Returns
         -------
-        Dict[str, Union[int, str]]
+        Dict[str, int | str]
             Migration statistics
         """
         # Acquire migration lock to prevent concurrent migrations
@@ -600,7 +600,7 @@ class RankSystem:
             reddit_bot,
             reddit_db,
             community_id: str,
-    ) -> Dict[str, Union[int, str]]:
+    ) -> Dict[str, int | str]:
         """Internal method that performs the actual Reddit migration."""
         total_submissions = 0
         total_comments = 0
@@ -681,7 +681,7 @@ class RankSystem:
         logger.info(f"Reddit migration completed with stats: {stats}")
         return stats
 
-    async def migrate_from_mee6(self, guild_id: int) -> Dict[str, Union[int, str]]:
+    async def migrate_from_mee6(self, guild_id: int) -> Dict[str, int | str]:
         """
         Migrate user data from Mee6 API.
 
@@ -692,7 +692,7 @@ class RankSystem:
 
         Returns
         -------
-        Dict[str, Union[int, str]]
+        Dict[str, int | str]
             Migration statistics
         """
         import asyncio
@@ -818,7 +818,7 @@ class RankSystem:
 
         return new_users, updated_users
 
-    async def _do_mee6_migration(self, guild_id: int) -> Dict[str, Union[int, str]]:
+    async def _do_mee6_migration(self, guild_id: int) -> Dict[str, int | str]:
         """Internal method that performs the actual Mee6 migration."""
         page = 0
         total_users = 0

@@ -1,5 +1,5 @@
 # standard imports
-from typing import List, Optional, Union
+from typing import List, Optional
 
 # local imports
 from src.common.database import Database
@@ -39,7 +39,7 @@ class RankDatabase(Database):
     def get_community_users(
             self,
             platform: str,
-            community_id: Union[int, str],
+            community_id: int | str,
             search: Optional[str] = None,
     ) -> List[dict]:
         """
@@ -49,7 +49,7 @@ class RankDatabase(Database):
         ----------
         platform : str
             Platform identifier ('discord' or 'reddit')
-        community_id : Union[int, str]
+        community_id : int | str
             Community identifier (guild_id for Discord, subreddit_id for Reddit)
         search : Optional[str]
             Optional search string to filter users by username (case-insensitive)
@@ -84,8 +84,8 @@ class RankDatabase(Database):
     def get_user_data(
             self,
             platform: str,
-            community_id: Union[int, str],
-            user_id: Union[int, str],
+            community_id: int | str,
+            user_id: int | str,
             create_if_not_exists: bool = False,
     ) -> dict:
         """
@@ -95,9 +95,9 @@ class RankDatabase(Database):
         ----------
         platform : str
             Platform identifier ('discord' or 'reddit')
-        community_id : Union[int, str]
+        community_id : int | str
             Community identifier (guild_id for Discord, subreddit_id for Reddit)
-        user_id : Union[int, str]
+        user_id : int | str
             User identifier
         create_if_not_exists : bool
             Whether to create a new user entry if it doesn't exist
@@ -140,8 +140,8 @@ class RankDatabase(Database):
     def update_user_data(
             self,
             platform: str,
-            community_id: Union[int, str],
-            user_id: Union[int, str],
+            community_id: int | str,
+            user_id: int | str,
             data: dict,
     ) -> dict:
         """
@@ -151,9 +151,9 @@ class RankDatabase(Database):
         ----------
         platform : str
             Platform identifier ('discord' or 'reddit')
-        community_id : Union[int, str]
+        community_id : int | str
             Community identifier (guild_id or subreddit_id)
-        user_id : Union[int, str]
+        user_id : int | str
             User identifier
         data : dict
             New user data
@@ -196,7 +196,7 @@ class RankDatabase(Database):
     def get_leaderboard(
             self,
             platform: str,
-            community_id: Union[int, str],
+            community_id: int | str,
             limit: int = 100,
             offset: int = 0,
     ) -> List[dict]:
@@ -207,7 +207,7 @@ class RankDatabase(Database):
         ----------
         platform : str
             Platform identifier ('discord' or 'reddit')
-        community_id : Union[int, str]
+        community_id : int | str
             Community identifier (guild_id or subreddit_id)
         limit : int
             Maximum number of entries to return
@@ -251,8 +251,8 @@ class RankDatabase(Database):
     def get_migration_status(
             self,
             platform: str,
-            community_id: Union[int, str],
-            source_id: Union[int, str],
+            community_id: int | str,
+            source_id: int | str,
     ) -> Optional[dict]:
         """
         Check if migration has already been performed for a specific source.
@@ -261,9 +261,9 @@ class RankDatabase(Database):
         ----------
         platform : str
             Platform identifier (e.g., 'discord', 'reddit')
-        community_id : Union[int, str]
+        community_id : int | str
             Community identifier (guild_id or subreddit_id)
-        source_id : Union[int, str]
+        source_id : int | str
             Source identifier (e.g., guild_id for Mee6)
 
         Returns
@@ -285,8 +285,8 @@ class RankDatabase(Database):
 
     def set_migration_completed(
             self, platform: str,
-            community_id: Union[int, str],
-            source_id: Union[int, str],
+            community_id: int | str,
+            source_id: int | str,
             stats: dict,
     ) -> dict:
         """
@@ -296,9 +296,9 @@ class RankDatabase(Database):
         ----------
         platform : str
             Platform identifier ('discord' or 'reddit')
-        community_id : Union[int, str]
+        community_id : int | str
             Community identifier (guild_id or subreddit_id)
-        source_id : Union[int, str]
+        source_id : int | str
             Source identifier (e.g., guild_id for Mee6)
         stats : dict
             Migration statistics
