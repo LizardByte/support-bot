@@ -139,11 +139,14 @@ class SupportCommandsCog(discord.Cog):
 
     @staticmethod
     def render_command_file(command_file: str) -> str:
-        with open(command_file, "r", encoding='utf-8') as file:
-            with MarkdownRenderer(
-                    max_line_length=4096,  # this must be set to reflow the text
-                    normalize_whitespace=True) as renderer:
-                return renderer.render(mistletoe.Document(file))
+        with (
+            open(command_file, "r", encoding='utf-8') as file,
+            MarkdownRenderer(
+                max_line_length=4096,  # this must be set to reflow the text
+                normalize_whitespace=True,
+            ) as renderer,
+        ):
+            return renderer.render(mistletoe.Document(file))
 
     @discord.slash_command(
         name="docs",

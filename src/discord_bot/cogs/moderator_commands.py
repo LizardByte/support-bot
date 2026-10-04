@@ -1,6 +1,5 @@
 # standard imports
 import time
-from typing import Union
 
 # lib imports
 import discord
@@ -32,7 +31,7 @@ class ModeratorCommandsCog(discord.Cog):
             self,
             ctx: discord.ApplicationContext,
             recommended_channel: Option(
-                Union[discord.ForumChannel, discord.TextChannel],
+                discord.ForumChannel | discord.TextChannel,
                 description=recommended_channel_desc,
                 required=True,
             ),
@@ -45,7 +44,7 @@ class ModeratorCommandsCog(discord.Cog):
         ----------
         ctx : discord.ApplicationContext
             Request message context.
-        recommended_channel : Union[discord.ForumChannel, discord.TextChannel]
+        recommended_channel : discord.ForumChannel | discord.TextChannel
             The recommended channel to move discussion to.
         """
         categories_map = {

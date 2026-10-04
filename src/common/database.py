@@ -5,7 +5,6 @@ from pathlib import Path
 import shelve
 import shutil
 import threading
-from typing import Union
 
 # lib imports
 import git
@@ -25,7 +24,7 @@ GIT_ENABLED = True  # disable to pause pushing to git, useful for heavy db opera
 
 
 class Database:
-    def __init__(self, db_name: str, db_dir: Union[str, Path] = data_dir, use_git: bool = True):
+    def __init__(self, db_name: str, db_dir: str | Path = data_dir, use_git: bool = True):
         self.db_name = db_name
         self.db_dir = db_dir
         self.repo = None
