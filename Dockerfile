@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM ghcr.io/astral-sh/uv:0.12-python3.14-trixie-slim
+FROM ghcr.io/astral-sh/uv:0.13-python3.14-trixie-slim
 
 # CI args
 ARG BRANCH
